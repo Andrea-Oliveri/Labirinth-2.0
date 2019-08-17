@@ -70,3 +70,38 @@ class Level:
         level_without_player = Level(self.list_2D)
         level_without_player[object_to_sub.lin_coord] = self[object_to_sub.lin_coord][:object_to_sub.col_coord] + symbols['empty'] + self[object_to_sub.lin_coord][object_to_sub.col_coord + 1:]
         return level_without_player
+    
+    def wall(self, case_lin_coord, case_col_coord, direction):
+        """Allows to wall a door adjacent to the case of case_lin_coord and case_col_coord
+        given as parameters in direction given as parameter.
+        Checks if there is a door adjacent to the player in that direction."""        
+        if direction == 'n':
+            case_lin_coord -= 1
+        elif direction == 's':
+            case_lin_coord += 1
+        elif direction == 'o':
+            case_col_coord -= 1
+        elif direction == 'e':
+            case_col_coord += 1
+        
+        if self[case_lin_coord][case_col_coord] == symbols['door']:
+            self[case_lin_coord] = self[case_lin_coord][:case_col_coord] + symbols['wall'] + self[case_lin_coord][case_col_coord + 1:]
+        return
+    
+    def door(self, case_lin_coord, case_col_coord, direction):
+        """Allows to door a wall adjacent to the case of case_lin_coord and case_col_coord
+        given as parameters in direction given as parameter.
+        Checks if there is a wall adjacent to the player in that direction and that it's
+        not an exterior wall."""
+        if direction == 'n':
+            case_lin_coord -= 1
+        elif direction == 's':
+            case_lin_coord += 1
+        elif direction == 'o':
+            case_col_coord -= 1
+        elif direction == 'e':
+            case_col_coord += 1
+        
+        if self[case_lin_coord][case_col_coord] == symbols['wall'] and case_lin_coord not in (0, len(self[0])-1) and case_col_coord not in (0, len(self[0])-1):
+            self[case_lin_coord] = self[case_lin_coord][:case_col_coord] + symbols['wall'] + self[case_lin_coord][case_col_coord + 1:]
+        return

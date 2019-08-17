@@ -1,3 +1,15 @@
+# PROBLEMS TO FIX: CURRENTLY, PLAYERS ARE WRITTEN ON THE LEVEL. THIS MAKES IT NOT POSSIBLE FOR THEM
+# TO MOVE, AS MOVE FUNCTION ONLY CHANGES PLAYERS COORDINATES, DOESN'T REDRAW THEM. THIS ALSO WOULD CAUSES
+# DOORS TO DISAPPEAR AFTER A PLAYER PASSED.
+# WHEN THIS IS FIXED, WE SHOULD AVOID PLAYERS SPAWNING IN SAME CASE, EACH TIME WE'D HAVE TO REDRAW ALL
+# PLAYERS (A SIMPLE FOR LOOP)
+
+# ALSO BUG COMMENT ON LINE 153
+
+
+
+
+
 # -*- coding: utf-8 -*-
 
 """Main module for the Server of Labirinth 2.0"""
@@ -136,25 +148,32 @@ def run_game(connected_clients, players, level):
         if not connected_clients:
             print("All the players left. Game is over.")
             return
-        # For each connected client, we check their command. If they don't answer
-        # within 30 seconds, we disconnect them.
+        
+        #
+        #
+        #
+        # /!\ FOR NOW, PLAYERS MOVE ASYNCHRNOUSLY: EACH PLAYER CAN MOVE INDEPENDENTLY AND THERE ARE NO TURNS.
+        # ALSO, INACTIVE CLIENTS SHOULD BE DISCONNECTED IN FUTURE. ALSO, MAIN_LINK SOCKET SHOULD BE CHECKED
+        # AND IF NEW CONNECTIONS ARE REQUESTED, A CONNECTION REFUSED COMMAND SHOULD BE SENT. CLIENT WOULD THEN NEED TO INFORM PLAYER.
+        #
+        #
+        #
+        
+        # We check if any connected client wants to send a command. 
         # The try block is because if connected_clients is empty, an exception is raised.
         try:
-            clients_to_read, wlist, xlist = select.select(connected_clients, [], [], 30)
+            clients_to_read, wlist, xlist = select.select(connected_clients, [], [], 2.)
         except select.error:
             pass
         else:
-            # For each client, we check if he moved and, if so, we read his command.
-            for client in connected_clients:
-                if client in clients_to_read:
-                    # This line may launch an exception if the message contains
-                    # special characters. It launches an exception if the client
-                    # is closed abruptly (in which case we forget him).
-                    try:
-                        message = client.recv(1024).decode()
-                    except (ConnectionAbortedError, ConnectionResetError):
-                        message = codons['player left']
-                else:
+            # For each client that wants to send a command, we read his command.
+            for client in clients_to_read:
+                # This line may launch an exception if the message contains
+                # special characters. It launches an exception if the client
+                # is closed abruptly (in which case we forget him).
+                try:
+                    message = client.recv(1024).decode()
+                except (ConnectionAbortedError, ConnectionResetError):
                     message = codons['player left']
                     
                 if codons['player left'] in message:
@@ -164,9 +183,13 @@ def run_game(connected_clients, players, level):
                     
                 if codons['move'] in message:
                     players[client].move(level, message[len(codons['move']):])
-                
                     
-                # CONTINUE HERE WITH OTHER COMMANDS. LINE 34: CHECK THIS WORKS TO STOP SERVER 30 SECONDS WAITING FOR COMMANDS, AND THAT IF SO, A CLIENT THAT QUITS WITH Q DOESN'T NEED TO WAIT 30 SECS
+                if codons['wall'] in message:
+                    level.wall(players[client].lin_coord, players[client].col_coord, message[len(codons['wall']):])
+                
+                if codons['door'] in message:
+                    level.door(players[client].lin_coord, players[client].col_coord, message[len(codons['door']):])
+                    
         tell_clients('step', level)
     
     

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""............................."""
+"""Module that defines some constants for the communication between client and server."""
 
 port = 19000
 

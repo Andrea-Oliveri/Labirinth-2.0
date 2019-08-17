@@ -41,8 +41,7 @@ class Player:
             return True
         else:
             return False
-    
-    
+           
     def _get_lin_coord(self):
         """Getter for the parameter _lin_coord."""
         return self._lin_coord
