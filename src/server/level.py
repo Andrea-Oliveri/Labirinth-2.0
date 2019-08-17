@@ -93,5 +93,5 @@ class Level:
             case_col_coord += 1
         
         if self[case_lin_coord][case_col_coord] == symbols['wall'] and case_lin_coord not in (0, len(self[0])-1) and case_col_coord not in (0, len(self[0])-1):
-            self[case_lin_coord] = self[case_lin_coord][:case_col_coord] + symbols['wall'] + self[case_lin_coord][case_col_coord + 1:]
+            self[case_lin_coord] = self[case_lin_coord][:case_col_coord] + symbols['door'] + self[case_lin_coord][case_col_coord + 1:]
         return

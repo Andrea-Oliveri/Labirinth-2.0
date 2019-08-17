@@ -4,8 +4,7 @@
 
 
 commands = {'start game': 'c', 'print rules': 'h', 'leave': 'q',
-            'directions': {'up': 'n', 'down': 's', 'right': 'e', 'left': 'o'},
-            'wall': 'm', 'door': 'p'}
+            'directions': ('n', 's', 'e', 'o'), 'wall': 'm', 'door': 'p'}
 
 
 def print_rules():
@@ -44,7 +43,7 @@ def interpret_game_action(command):
     if command == '':
         return None
     
-    elif command[0] in commands['directions'].values():
+    elif command[0] in commands['directions']:
         if string_is_positive_integer_or_empty(command[1:]):
             distance = 1
             if command[1:]:
@@ -52,7 +51,7 @@ def interpret_game_action(command):
             direction = command[0]
             return {'command': direction, 'distance': distance}
         
-    elif command[0] in (commands['wall'], commands['door']) and command[1:].strip() in commands['directions'].values():
+    elif command[0] in (commands['wall'], commands['door']) and command[1:].strip() in commands['directions']:
             direction = command[1:].strip()
             command = command[0]
             return {'command': command, 'direction': direction}

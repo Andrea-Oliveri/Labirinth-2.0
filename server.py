@@ -149,9 +149,7 @@ def run_game(connected_clients, players, level):
         # /!\ FOR NOW, PLAYERS MOVE ASYNCHRNOUSLY: EACH PLAYER CAN MOVE INDEPENDENTLY AND THERE ARE NO TURNS.
         # ALSO, INACTIVE CLIENTS SHOULD BE DISCONNECTED IN FUTURE. ALSO, MAIN_LINK SOCKET SHOULD BE CHECKED
         # AND IF NEW CONNECTIONS ARE REQUESTED, A CONNECTION REFUSED COMMAND SHOULD BE SENT. CLIENT WOULD THEN NEED TO INFORM PLAYER.
-        # IF THE PLAYER WINS,THE VICTORY MESSAGE IS SENT CORRECTLY. IF HE LOST, NOT REALLY...
-        # ASYNCHRONIC MOVEMENT WORKS FINE. WALL AND DOOR COMMANDS DO NOT WORK
-        #
+        # HOW TO DEAL WITH PLAYERS SUPERPOSITION?
         #
         
         # We check if any connected client wants to send a command. 
@@ -193,8 +191,10 @@ def run_game(connected_clients, players, level):
         if player_on_exit(level, players[client]):
             message = codons['game end']+codons_end+'Congratulations, you won!'
         else:
-            codons['game end']+codons_end+'Sorry, you lost...'
+            message = codons['game end']+codons_end+'Sorry, you lost...'
         client.send(message.encode())
+        
+    print("A player left the labirinth. Game is over.")
     return
 
 
@@ -216,5 +216,3 @@ connected_clients = []
 players = {}
 wait_for_players(connected_clients, players, level)
 run_game(connected_clients, players, level)
-
-print("A player left the labirinth. Game is over.")

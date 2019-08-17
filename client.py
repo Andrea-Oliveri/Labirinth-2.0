@@ -82,15 +82,17 @@ def run_game(user_commands):
             if user_commands['leave']:
                 raise KeyboardInterrupt
             if user_commands['game action']:               
-                if user_commands['game action']['command'] in commands['directions'].values():
+                if user_commands['game action']['command'] in commands['directions']:
                     server_link.send((codons['move']+user_commands['game action']['command']).encode())
                     user_commands['game action']['distance'] -= 1
                     if user_commands['game action']['distance'] == 0:
                         user_commands['game action'] = None
                 elif user_commands['game action']['command'] == commands['wall']:
                     server_link.send((codons['wall']+user_commands['game action']['direction']).encode())
+                    user_commands['game action'] = None
                 elif user_commands['game action']['command'] == commands['door']:
-                    server_link.send((codons['door']+user_commands['game action']['direction']).encode()) 
+                    server_link.send((codons['door']+user_commands['game action']['direction']).encode())
+                    user_commands['game action'] = None
     
     
     
