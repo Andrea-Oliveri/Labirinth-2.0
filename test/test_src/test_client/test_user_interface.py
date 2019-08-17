@@ -19,7 +19,7 @@ class TestUserInterface(unittest.TestCase):
         for string in bad_string:
             assertFalse(user_interface.string_is_positive_integer_or_empty(string))
             
-    def test_interpret_command(self):
+    def test_interpret_game_action(self):
         """Test the function user_interface.interpret_command."""      
         good_string = ['', '    10', '\t\t10   ']
         bad_string = ['-10', '     -10', '\t\t-10   ', 'a' ]
@@ -31,16 +31,14 @@ class TestUserInterface(unittest.TestCase):
 
 
 
-def interpret_command(command):
-    """Function that interprets the command inserted by the user.
-    Returns a tuple with the command and evenctually an argument (depending on
-    the command) if reading happened correctly, and returns None otherwise."""
+def interpret_game_action(command):
+    """Function that interprets the game action command inserted by the user.
+    Returns a tuple with the command and the argument (if it's a move command,
+    argument is a distance and if it's a wall or door command, argument is the
+    direction) if reading happened correctly, and returns None otherwise."""
     
     if command == '':
         return None
-    
-    elif command == commands['print rules'] or command == commands['leave']:
-        return (command,)
     
     elif command[0] in commands['directions']:
         if string_is_positive_integer_or_empty(command[1:]):

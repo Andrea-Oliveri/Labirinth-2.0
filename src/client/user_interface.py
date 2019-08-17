@@ -16,7 +16,7 @@ def print_rules():
     print("\t O: wall (blocks robot)\n\t .: door (robot can pass)\n\t U: exit\n\t X: your robot\n\t x: adversaries' robots")
     print(u"\u2022", "Controls:")
     print("\t Q: quit\n\t N: move up\n\t S: move down\n\t E: move right\n\t O: move left\n\t All move commands can be followed by a number to express how far to move.")
-    print("\t M{d}: turn the door adjacent to the robot in direction {d} into a wall.\n\t P{d} turn the wall adjacent to the robot in direction {d} into a door\n\n")
+    print("\t M{d}: turn the door adjacent to the robot in direction {d} into a wall.\n\t P{d} turn the wall adjacent to the robot in direction {d} into a door (can't be done with exterior walls).\n\n")
     return
 
 
@@ -35,28 +35,26 @@ def string_is_positive_integer_or_empty(string):
         return False
 
 
-def interpret_command(command):
-    """Function that interprets the command inserted by the user.
-    Returns a tuple with the command and evenctually an argument (depending on
-    the command) if reading happened correctly, and returns None otherwise."""
+def interpret_game_action(command):
+    """Function that interprets the game action command inserted by the user.
+    Returns a dictionnaire with the command and the argument (if it's a move command,
+    argument is a distance and if it's a wall or door command, argument is the
+    direction) if reading happened correctly, and returns None otherwise."""
     
     if command == '':
         return None
-    
-    elif command == commands['print rules'] or command == commands['leave']:
-        return (command,)
     
     elif command[0] in commands['directions']:
         if string_is_positive_integer_or_empty(command[1:]):
             distance = 1
             if command[1:]:
                 distance = int(command[1:])
-            command = command[0]
-            return (command, distance)
+            direction = command[0]
+            return {'command': direction, 'distance': distance}
         
     elif command[0] in (commands['wall'], commands['door']) and command[1:].strip() in commands['directions']:
             direction = command[1:].strip()
             command = command[0]
-            return (command, direction)
+            return {'command': command, 'direction': direction}
     
     return None

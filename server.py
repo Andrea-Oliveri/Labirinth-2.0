@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Module ..............................."""
+"""Main module for the Server of Labirinth 2.0"""
 
 import socket
 import select
@@ -26,7 +26,8 @@ def keyboard_interrupt(sig, feame):
     
     
 def choose_random_empty_case(level):
-    """.........................."""
+    """Returns the line index and col index of a randomly chosen empty case
+    in parameter level."""
     random_lin = random.randrange(len(level.list_2D))
     while not graphic.symbols['empty'] in level[random_lin]:
         random_lin = random.randrange(len(level.list_2D))
@@ -79,7 +80,11 @@ def player_on_exit(level, player):
 
 
 def wait_for_players(connected_clients, players, level):
-    """............................"""
+    """Function that periodically tests if there are new clients that want to join
+    the game, for each new client spawns a player in the game. It also periodically
+    checks if a client wants to talk with the server and if so, we get and treat
+    the message (can be either a start request or a player left info). For every
+    change, we write a message on the console and inform all connected clients."""
     start_asked = False
     while not start_asked:
         # We test wether there are any clients wanting to connect on the server socket.
@@ -112,7 +117,6 @@ def wait_for_players(connected_clients, players, level):
                     message = client.recv(1024).decode()
                 except (ConnectionAbortedError, ConnectionResetError):
                     message = codons['player left']
-
                     
                 if message == codons['start']:
                     start_asked = True

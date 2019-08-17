@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Module ..............................."""
+"""Main module for the Client of Labirinth 2.0"""
 
 import socket
 import select
@@ -16,15 +16,19 @@ host_name = 'localhost'
 
 
 def print_connection_error_and_quit(message):
-    """.............................."""
+    """Function called in case of a connection error (connection can't be 
+    established or is lost). Prints the message passed as parameter, closes
+    the socket and terminates execution"""
     print(message)
     server_link.close()
     os.system('pause')
     sys.exit()    
             
             
-def wait_for_start(commands_list):
-    """..........................."""
+def wait_for_start(user_commands):
+    """Function that periodically checks if there are new messages from the
+    server and treats the commands by the user. Returns only once the server
+    sent the start codon."""
     server_message = ''
     while codons['start'] not in server_message:
         read_server, wlist, xlist = select.select([server_link], [], [], 0.05)
@@ -41,21 +45,20 @@ def wait_for_start(commands_list):
                     print("\nA player left: \n")
                 print(server_message[server_message.index(codons_end)+len(codons_end):])
         
-        with commands_list_lock:
-            for command in commands_list:
-                if command == commands['start game']:
+        with user_commands_lock:
+            if user_commands['start game']:
                 # This could send a second request to the server to start the game
                 # (if two clients ask to start almost simultaneously), but it will
                 # be up to the server to ignore any following game start requests. 
-                    server_link.send(codons['start'].encode())
-                elif command == commands['print rules']:
-                    user_interface.print_rules()
-                elif command == commands['leave']:
-                    raise KeyboardInterrupt
-            commands_list.clear()
+                server_link.send(codons['start'].encode())
+            if user_commands['print rules']:
+                user_interface.print_rules()
+                user_commands['print rules'] = False
+            if user_commands['leave']:
+                raise KeyboardInterrupt
 
 
-def run_game(commands_list):
+def run_game(user_commands):
     """..........................."""
     server_message = ''
     while codons['game end'] not in server_message:
@@ -71,83 +74,65 @@ def run_game(commands_list):
                     print("\nGame updated: \n")
                 print(server_message[server_message.index(codons_end)+len(codons_end):])
         
-        with commands_list_lock:
-            asked_leave = False
-            asked_print = False
-            game_action = None
-            
-            for command in commands_list:                   
-                if command[0] == commands['leave']:
-                    asked_leave = True
-                elif command[0] == commands['print rules']:
-                    asked_print = True
-                else:
-                    # When we append the command in the list we already ensure
-                    # there is are no duplicates nor  conflicting actioons within
-                    # a turn. So there is only one element which is a game action.
-                    game_action = command
-    
-            if asked_leave:
-                raise KeyboardInterrupt
-            if asked_print:
+        with user_commands_lock:
+            if user_commands['print rules']:
                 user_interface.print_rules()
-            if game_action:
-                if game_action[0] in command['directions']:
-                    server_link.send((codons['move']+game_action[0]).encode())
-                    game_action[1] -= 1
-                    if game_action[1] == 0:
-                        game_action = None
-                elif game_action[0] == commands['wall']:
-                    server_link.send((codons['wall']+game_action[1]).encode())
-                elif game_action[0] == commands['door']:
-                    server_link.send((codons['door']+game_action[1]).encode())                
-            
-            commands_list.clear()
-            # In case of a command with multiple moves, we append again the
-            # command with a distance decreased by one.
-            if game_action:
-                commands_list.append(game_action)
-
-    
-    
+                user_commands['print rules'] = False
+            if user_commands['leave']:
+                raise KeyboardInterrupt
+            if user_commands['game action']:               
+                if user_commands['game action']['command'] in commands['directions']:
+                    server_link.send((codons['move']+user_commands['game action']['command']).encode())
+                    user_commands['game action']['distance'] -= 1
+                    if user_commands['game action']['distance'] == 0:
+                        user_commands['game action'] = None
+                elif user_commands['game action']['command'] == commands['wall']:
+                    server_link.send((codons['wall']+user_commands['game action']['direction']).encode())
+                elif user_commands['game action']['command'] == commands['door']:
+                    server_link.send((codons['door']+user_commands['game action']['direction']).encode()) 
     
     
     
 class GetPlayerCommands(Thread):
-    """...................."""
+    """Thread that takes all user inputs and modifies user_commands accordingly."""
     
-    def __init__(self, commands_list):
-        """................"""
+    def __init__(self, user_commands):
+        """Constructor of class GetPlayerCommands."""
         Thread.__init__(self)
-        self.commands_list = commands_list
+        self.user_commands = user_commands
         self.daemon = True
         self.game_started = False
         
         
     def run(self):
-        """........deals with repetition of commands, ignoring repeating commands............"""
+        """Run method of the thread. Modifies user_commands accordingly to the
+        user input. All possible repetitions or command conflicts are dealt with
+        here."""
         while True:
             command = input().lower().strip()
-            with print_lock:
-                if not self.game_started:
-                    if command not in (commands['start game'], commands['print rules'], commands['leave']):
-                        print("Press C to start the game, H for the rules or Q to leave.")
-                    elif command not in self.commands_list:
-                        with commands_list_lock:
-                            self.commands_list.append(command)
+            with print_lock, user_commands_lock:
+                # No matter if the game started or not, we accept the 'print rules' and 'leave' commands.
+                if command == commands['print rules']:
+                    self.user_commands['print rules'] = True
+                elif command == commands['leave']:
+                    self.user_commands['leave'] = True
                 else:
-                    command_arg_tuple = user_interface.interpret_command(command)
-                    if command_arg_tuple:
-                        if command_arg_tuple[0] in (commands['print rules'], commands['leave']) and command_arg_tuple not in self.commands_list:
-                            self.commands_list.append(command_arg_tuple)
-                        elif not any(command_tuple[0] in tuple(commands['directions'].values()) + (commands['wall'], commands['door']) for command_tuple in commands_list):
-                            self.commands_list.append(command_arg_tuple)
+                    # Only if the game did not start, we accept the 'start game' command.
+                    if not self.game_started: 
+                        if command == commands['start game']:
+                            self.user_commands['start game'] = True
                         else:
-                            print('You have game actions that are still pending.')
+                            print("Press C to start the game, H for the rules or Q to leave.")
+                    # Only if the game started, we accept 'game action' command.
                     else:
-                        print("Insert the command (n/s/o/e/m/p/h/q).")
-        return
-            
+                        game_action = user_interface.interpret_game_action(command)
+                        if game_action:
+                            if self.user_commands['game action'] == None:
+                                self.user_commands['game action'] = game_action
+                            else:
+                                print('You have game actions that are still pending.')
+                        else:
+                            print("Insert the command (n/s/o/e/m/p/h/q).")            
         
 
 print("Welcome to Labirinth 2.0")
@@ -162,22 +147,22 @@ except:
 
 print("Connected to the server on port:", port)
 
-# Declaration of a list of commands that is going to be filled by the thread
+# Declaration of a dictionary of commands that is going to be filled by the thread
 # interacting with the player and treated by the main thread.
-commands_list = []
+user_commands = {'start game': False, 'print rules': False, 'leave': False, 'game action': None}
 
-# We create a daemon thread that fills commands_list with the commands from the user.
+# We create a daemon thread that fills user_commands with the commands from the user.
 print_lock = RLock()
-commands_list_lock = RLock()
-thread_get_player_commands = GetPlayerCommands(commands_list)
+user_commands_lock = RLock()
+thread_get_player_commands = GetPlayerCommands(user_commands)
 print("\nPress C to start the game, H for the rules or Q to leave.")
 thread_get_player_commands.start()
 
 try:
-    wait_for_start(commands_list)
+    wait_for_start(user_commands)
     thread_get_player_commands.game_started = True
     print("Insert the command (n/s/o/e/m/p/h/q).")
-    run_game(commands_list)  
+    run_game(user_commands)
 
 except (ConnectionAbortedError, ConnectionResetError):
     # In case of connection with server lost we want to inform the user and quit.
