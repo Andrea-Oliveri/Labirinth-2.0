@@ -30,14 +30,23 @@ host_name = ''
 
 
 def keyboard_interrupt(sig, feame):
-    """Fonction called by the signal module if the client's window is closed
+    """Function called by the signal module if the client's window is closed
     via Ctrl+C. If the server is closed, we want to close the connection."""
-    tell_clients('server quit', level)
+    tell_clients('server quit', level, players)
     main_link.close()
     sys.exit()
     
+
+def add_players_to_level(level, players):
+    """Function that takes as parameter a level and a dictionaire with players
+    as values and returns the level with the players inserted in it."""
+    level_with_players = Level(level.list_2D)
+    for player in players.values():
+        level_with_players = level_with_players + player
+    return level_with_players
     
-def choose_random_empty_case(level):
+    
+def choose_random_empty_case(level_with_players):
     """Returns the line index and col index of a randomly chosen empty case
     in parameter level."""
     random_lin = random.randrange(len(level.list_2D))
@@ -58,7 +67,7 @@ def choose_random_empty_case(level):
     return random_lin, random_col
 
 
-def tell_clients(codon, level):
+def tell_clients(codon, level, players):
     """.............................."""
     if codon == 'server quit':
         print("Server shuts down.")
@@ -71,15 +80,14 @@ def tell_clients(codon, level):
     elif codon == 'step':
         print("All players moved a step: ")
     
-    graphic.draw_all(level)
+    graphic.draw_all(add_players_to_level(level, players))
     
     for client in connected_clients:
         player = players[client]
         player.draw_as_main = True 
-        level_with_main_player = level - player + player
-        player.draw_as_main = False 
-        message = codons[codon] + codons_end + str(level_with_main_player)
+        message = codons[codon] + codons_end + str(add_players_to_level(level, players))
         client.send(message.encode())
+        player.draw_as_main = False 
     return
 
 
@@ -106,12 +114,11 @@ def wait_for_players(connected_clients, players, level):
         # and we create a new player for him.
         for link in asked_links:
             client_link, link_infos = link.accept()
-            connected_clients.append(client_link)      
-            lin, col = choose_random_empty_case(level)
+            connected_clients.append(client_link)
+            lin, col = choose_random_empty_case(add_players_to_level(level, players))
             new_player = Player(lin, col)
             players[client_link] = new_player
-            level = level + new_player
-            tell_clients('new player', level)
+            tell_clients('new player', level, players)
         
         # For each connected client, we check whether they want to be read.
         # The try block is because if connected_clients is empty, an exception is raised.
@@ -134,11 +141,10 @@ def wait_for_players(connected_clients, players, level):
                     start_asked = True
 
                 elif message == codons['player left']:
-                    level = level - players[client]
                     players.pop(client)
                     connected_clients.remove(client)
-                    tell_clients('player left', level)
-    tell_clients('start', level)
+                    tell_clients('player left', level, players)
+    tell_clients('start', level, players)
     return
         
 
@@ -190,7 +196,7 @@ def run_game(connected_clients, players, level):
                 if codons['door'] in message:
                     level.door(players[client].lin_coord, players[client].col_coord, message[len(codons['door']):])
                     
-        tell_clients('step', level)
+        tell_clients('step', level, players)
     
     
     for client in connected_clients:

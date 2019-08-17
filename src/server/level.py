@@ -61,16 +61,6 @@ class Level:
         """Special function that is the reciprocal of __add__."""
         return self + object_to_add
     
-    
-    def __sub__(self, object_to_sub):
-        """Special function that allows to eliminate a class player from a level."""
-        if not isinstance(object_to_sub, Player):
-            raise TypeError("unsupported operand type(s) for -: '{}' and 'Level'".format(type(object_to_sub).__name__))
-        
-        level_without_player = Level(self.list_2D)
-        level_without_player[object_to_sub.lin_coord] = self[object_to_sub.lin_coord][:object_to_sub.col_coord] + symbols['empty'] + self[object_to_sub.lin_coord][object_to_sub.col_coord + 1:]
-        return level_without_player
-    
     def wall(self, case_lin_coord, case_col_coord, direction):
         """Allows to wall a door adjacent to the case of case_lin_coord and case_col_coord
         given as parameters in direction given as parameter.

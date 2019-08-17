@@ -2,7 +2,7 @@
 
 """Module that defines some constants for the communication between client and server."""
 
-port = 19000
+port = 20000
 
 codons_end = '&'
 codons = {'server quit': '000', 'start': '001', 'new player': '002', 'player left': '003',
