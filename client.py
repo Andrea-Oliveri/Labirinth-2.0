@@ -51,6 +51,7 @@ def wait_for_start(user_commands):
                 # (if two clients ask to start almost simultaneously), but it will
                 # be up to the server to ignore any following game start requests. 
                 server_link.send(codons['start'].encode())
+                user_commands['start game'] = False
             if user_commands['print rules']:
                 user_interface.print_rules()
                 user_commands['print rules'] = False
@@ -81,7 +82,7 @@ def run_game(user_commands):
             if user_commands['leave']:
                 raise KeyboardInterrupt
             if user_commands['game action']:               
-                if user_commands['game action']['command'] in commands['directions']:
+                if user_commands['game action']['command'] in commands['directions'].values():
                     server_link.send((codons['move']+user_commands['game action']['command']).encode())
                     user_commands['game action']['distance'] -= 1
                     if user_commands['game action']['distance'] == 0:
@@ -110,29 +111,30 @@ class GetPlayerCommands(Thread):
         here."""
         while True:
             command = input().lower().strip()
-            with print_lock, user_commands_lock:
-                # No matter if the game started or not, we accept the 'print rules' and 'leave' commands.
-                if command == commands['print rules']:
-                    self.user_commands['print rules'] = True
-                elif command == commands['leave']:
-                    self.user_commands['leave'] = True
-                else:
-                    # Only if the game did not start, we accept the 'start game' command.
-                    if not self.game_started: 
-                        if command == commands['start game']:
-                            self.user_commands['start game'] = True
-                        else:
-                            print("Press C to start the game, H for the rules or Q to leave.")
-                    # Only if the game started, we accept 'game action' command.
+            with print_lock:
+                with user_commands_lock:
+                    # No matter if the game started or not, we accept the 'print rules' and 'leave' commands.
+                    if command == commands['print rules']:
+                        self.user_commands['print rules'] = True
+                    elif command == commands['leave']:
+                        self.user_commands['leave'] = True
                     else:
-                        game_action = user_interface.interpret_game_action(command)
-                        if game_action:
-                            if self.user_commands['game action'] == None:
-                                self.user_commands['game action'] = game_action
+                        # Only if the game did not start, we accept the 'start game' command.
+                        if not self.game_started: 
+                            if command == commands['start game']:
+                                self.user_commands['start game'] = True
                             else:
-                                print('You have game actions that are still pending.')
+                                print("Press C to start the game, H for the rules or Q to leave.")
+                        # Only if the game started, we accept 'game action' command.
                         else:
-                            print("Insert the command (n/s/o/e/m/p/h/q).")            
+                            game_action = user_interface.interpret_game_action(command)
+                            if game_action:
+                                if self.user_commands['game action'] == None:
+                                    self.user_commands['game action'] = game_action
+                                else:
+                                    print('You have game actions that are still pending.')
+                            else:
+                                print("Insert the command (n/s/o/e/m/p/h/q).")            
         
 
 print("Welcome to Labirinth 2.0")

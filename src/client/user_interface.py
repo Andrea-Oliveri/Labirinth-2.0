@@ -44,7 +44,7 @@ def interpret_game_action(command):
     if command == '':
         return None
     
-    elif command[0] in commands['directions']:
+    elif command[0] in commands['directions'].values():
         if string_is_positive_integer_or_empty(command[1:]):
             distance = 1
             if command[1:]:
@@ -52,7 +52,7 @@ def interpret_game_action(command):
             direction = command[0]
             return {'command': direction, 'distance': distance}
         
-    elif command[0] in (commands['wall'], commands['door']) and command[1:].strip() in commands['directions']:
+    elif command[0] in (commands['wall'], commands['door']) and command[1:].strip() in commands['directions'].values():
             direction = command[1:].strip()
             command = command[0]
             return {'command': command, 'direction': direction}
