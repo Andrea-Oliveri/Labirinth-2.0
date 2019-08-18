@@ -2,9 +2,10 @@
 
 """Module that defines some constants for the communication between client and server."""
 
-port = 20000
+port = 25000
 
 codons_end = '&'
-codons = {'server quit': '000', 'start': '001', 'new player': '002', 'player left': '003',
-          'game end': '004', 'step': '005', 'move': '006', 'wall': '007', 'door': '008',
+codons = {'server quit': '000', 'connection accepted': '001', 'connection denied': '002',
+          'start': '003', 'new player': '004', 'player left': '005',
+          'game end': '006', 'step': '007', 'move': '008', 'wall': '009', 'door': '010',
           'up': 'n', 'down': 's', 'right': 'e', 'left': 'o'}

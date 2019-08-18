@@ -16,6 +16,7 @@ class Player:
         self._lin_coord = lin_coord
         self._col_coord = col_coord
         self._draw_as_main = False
+        self._has_moved = False
     
     
     def move(self, level, direction):
@@ -62,10 +63,20 @@ class Player:
         self._draw_as_main = val
         return
     
+    def _get_has_moved(self):
+        """Getter for the parameter _has_moved."""
+        return self._has_moved
+    
+    def _set_has_moved(self, val):
+        """Getter for the parameter _has_moved."""
+        self._has_moved = val
+        return
+    
     
     """Definition of a properties for each parameter: _lin_coord, _col_coord
-    and _draw_as_main. The first two parameters get from the exteriour, not
-    set nor deleted. The third one can be get and set, but not deleted."""
+    and _draw_as_main. The first two parameters can be get from the exteriour,
+    not set nor deleted. The lest two can be get and set, but not deleted."""
     lin_coord = property(_get_lin_coord)
     col_coord = property(_get_col_coord)    
-    draw_as_main  = property(_get_draw_as_main, _set_draw_as_main)
+    draw_as_main = property(_get_draw_as_main, _set_draw_as_main)
+    has_moved  = property(_get_has_moved, _set_has_moved)

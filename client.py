@@ -142,12 +142,19 @@ class GetPlayerCommands(Thread):
 print("Welcome to Labirinth 2.0")
 
 server_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
 print("Connecting to server on port:", port)
-# We try to connect and we quit if server is not active.
+# We try to connect and we quit if server is not active or does not respnd within
+# 3 seconds (server not active but socket is open).
 try:
     server_link.connect((host_name, port))
+    server_link.settimeout(3.)
+    confirmation_message = server_link.recv(1024).decode()
+    server_link.settimeout(None)
+    if confirmation_message == codons['connection denied']:
+        raise ConnectionAbortedError    
 except:
-    print_connection_error_and_quit('Server is not active. Connection Failed. Exiting.')
+    print_connection_error_and_quit('Server is not active or a game is already running. Connection Failed. Exiting.')
 
 print("Connected to the server on port:", port)
 

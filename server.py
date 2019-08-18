@@ -1,3 +1,9 @@
+# MULTIPLE DISTANCE MOVES DO NOT WORK
+# NO ERROR MESSAGES SHOWED WHEN ACTION STILL PENDING (DUE TO RLOCKS... AND THE FACT THAT
+# CURRENTLY, SERVER DOES NOT ACCEPT MESSAGE AS LONG AS NOT ALL PLAYERS HAVE MOVED,
+# SO SENDING GAME ACTION IS BLOCKED IN THE LOCK)
+
+
 # -*- coding: utf-8 -*-
 
 """Main module for the Server of Labirinth 2.0"""
@@ -79,6 +85,16 @@ def tell_clients(codon, level, players):
     return
 
 
+def game_step(level, players):
+    """Function that tests if all the players moved in the current step and, if so,
+    runs a game step."""
+    if all(player.has_moved for player in players.values()):
+        tell_clients('step', level, players)
+        for player in players.values():
+            player.has_moved = False
+    return
+    
+
 def player_on_exit(level, player):
     """Tests whether a player is currently on one exit. Returns True if
     it's the case, False otherwise."""
@@ -98,10 +114,11 @@ def wait_for_players(connected_clients, players, level):
         # We test wether there are any clients wanting to connect on the server socket.
         asked_links, wlist, xlist = select.select([main_link], [], [], 0.05)
         
-        # For each client that asked to connect, we add their socket to the list
-        # and we create a new player for him.
+        # For each client that asked to connect, we add their socket to the list,
+        # we send a confirmation message and we create a new player for him.
         for link in asked_links:
             client_link, link_infos = link.accept()
+            client_link.send(codons['connection accepted'].encode())
             connected_clients.append(client_link)
             lin, col = choose_random_empty_case(add_players_to_level(level, players))
             new_player = Player(lin, col)
@@ -143,47 +160,49 @@ def run_game(connected_clients, players, level):
             print("All the players left. Game is over.")
             return
         
-        #
-        #
-        #
-        # /!\ FOR NOW, PLAYERS MOVE ASYNCHRNOUSLY: EACH PLAYER CAN MOVE INDEPENDENTLY AND THERE ARE NO TURNS.
-        # ALSO, INACTIVE CLIENTS SHOULD BE DISCONNECTED IN FUTURE. ALSO, MAIN_LINK SOCKET SHOULD BE CHECKED
-        # AND IF NEW CONNECTIONS ARE REQUESTED, A CONNECTION REFUSED COMMAND SHOULD BE SENT. CLIENT WOULD THEN NEED TO INFORM PLAYER.
-        # HOW TO DEAL WITH PLAYERS SUPERPOSITION?
-        #
+        # We test wether there are any clients wanting to connect on the server socket.
+        asked_links, wlist, xlist = select.select([main_link], [], [], 0.05)
+        
+        # For each client that asked to connect, we refuse the connection.
+        for link in asked_links:
+            client_link, link_infos = link.accept()
+            client_link.send(codons['connection denied'].encode())
+            client_link.close()
         
         # We check if any connected client wants to send a command. 
         # The try block is because if connected_clients is empty, an exception is raised.
         try:
-            clients_to_read, wlist, xlist = select.select(connected_clients, [], [], 5.)
+            clients_to_read, wlist, xlist = select.select(connected_clients, [], [], 0.05)
         except select.error:
             pass
         else:
             # For each client that wants to send a command, we read his command.
             for client in clients_to_read:
-                # This line may launch an exception if the message contains
-                # special characters. It launches an exception if the client
-                # is closed abruptly (in which case we forget him).
-                try:
-                    message = client.recv(1024).decode()
-                    print(message)
-                except (ConnectionAbortedError, ConnectionResetError):
-                    message = codons['player left']
+                if not players[client].has_moved:
+                    # This line may launch an exception if the message contains
+                    # special characters. It launches an exception if the client
+                    # is closed abruptly (in which case we forget him).
+                    try:
+                        message = client.recv(1024).decode()
+                    except (ConnectionAbortedError, ConnectionResetError):
+                        message = codons['player left']
                     
-                if codons['player left'] in message:
-                    players.pop(client)
-                    connected_clients.remove(client)
+                    players[client].has_moved = True
                     
-                if codons['move'] in message:
-                    players[client].move(level, message[len(codons['move']):])
+                    if codons['player left'] in message:
+                        players.pop(client)
+                        connected_clients.remove(client)
+                        
+                    if codons['move'] in message:
+                        players[client].move(level, message[len(codons['move']):])
+                        
+                    if codons['wall'] in message:
+                        level.wall(players[client].lin_coord, players[client].col_coord, message[len(codons['wall']):])
                     
-                if codons['wall'] in message:
-                    level.wall(players[client].lin_coord, players[client].col_coord, message[len(codons['wall']):])
-                
-                if codons['door'] in message:
-                    level.door(players[client].lin_coord, players[client].col_coord, message[len(codons['door']):])
-                    
-        tell_clients('step', level, players)
+                    if codons['door'] in message:
+                        level.door(players[client].lin_coord, players[client].col_coord, message[len(codons['door']):])
+        
+        game_step(level, players)
     
     
     for client in connected_clients:
@@ -216,3 +235,4 @@ connected_clients = []
 players = {}
 wait_for_players(connected_clients, players, level)
 run_game(connected_clients, players, level)
+main_link.close()
