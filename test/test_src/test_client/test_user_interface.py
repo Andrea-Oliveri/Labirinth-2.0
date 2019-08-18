@@ -15,9 +15,9 @@ class TestUserInterface(unittest.TestCase):
         bad_string = ['-10', '     -10', '\t\t-10   ', 'a' ]
         
         for string in good_string:
-            assertTrue(user_interface.string_is_positive_integer_or_empty(string))
+            self.assertTrue(user_interface.string_is_positive_integer_or_empty(string))
         for string in bad_string:
-            assertFalse(user_interface.string_is_positive_integer_or_empty(string))
+            self.assertFalse(user_interface.string_is_positive_integer_or_empty(string))
             
     def test_interpret_game_action(self):
         """Test the function user_interface.interpret_command."""      
@@ -25,9 +25,9 @@ class TestUserInterface(unittest.TestCase):
         bad_string = ['-10', '     -10', '\t\t-10   ', 'a' ]
         
         for string in good_string:
-            assertTrue(user_interface.string_is_positive_integer_or_empty(string))
+            self.assertTrue(user_interface.string_is_positive_integer_or_empty(string))
         for string in bad_string:
-            assertFalse(user_interface.string_is_positive_integer_or_empty(string))
+            self.assertFalse(user_interface.string_is_positive_integer_or_empty(string))
 
 
 

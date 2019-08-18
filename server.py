@@ -118,7 +118,7 @@ def wait_for_players(connected_clients, players, level):
         # we send a confirmation message and we create a new player for him.
         for link in asked_links:
             client_link, link_infos = link.accept()
-            client_link.send(codons['connection accepted'].encode())
+            client_link.send(codons['aknowledge'].encode())
             connected_clients.append(client_link)
             lin, col = choose_random_empty_case(add_players_to_level(level, players))
             new_player = Player(lin, col)
@@ -166,7 +166,7 @@ def run_game(connected_clients, players, level):
         # For each client that asked to connect, we refuse the connection.
         for link in asked_links:
             client_link, link_infos = link.accept()
-            client_link.send(codons['connection denied'].encode())
+            client_link.send(codons['refused'].encode())
             client_link.close()
         
         # We check if any connected client wants to send a command. 

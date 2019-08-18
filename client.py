@@ -151,7 +151,7 @@ try:
     server_link.settimeout(3.)
     confirmation_message = server_link.recv(1024).decode()
     server_link.settimeout(None)
-    if confirmation_message == codons['connection denied']:
+    if confirmation_message == codons['refused']:
         raise ConnectionAbortedError    
 except:
     print_connection_error_and_quit('Server is not active or a game is already running. Connection Failed. Exiting.')
