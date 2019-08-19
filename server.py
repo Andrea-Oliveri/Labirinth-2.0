@@ -4,8 +4,8 @@
 
 import socket
 import select
-import signal
 import random
+import os
 import sys
 import time
 
@@ -18,12 +18,6 @@ from src.communication import port, codons_end, codons
 host_name = ''
 
 
-def keyboard_interrupt(sig, feame):
-    """Function called by the signal module if the client's window is closed
-    via Ctrl+C. If the server is closed, we want to close the connection."""
-    tell_clients('server quit', level, players)
-    main_link.close()
-    sys.exit()
     
 
 def add_players_to_level(level, players):
@@ -184,6 +178,7 @@ def run_game(connected_clients, players, level):
             # the client he has been disconnected. If we can't for any reason, 
             # we don't worry anymore. 
             except socket.timeout:
+                message = codons['player left']
                 try:
                     disconnected_message = codons['server quit'] + codons_end
                     client.send(disconnected_message.encode())
@@ -233,13 +228,17 @@ main_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 main_link.bind((host_name, port))
 main_link.listen(5)
 
-# In case of a keyboard interrupt, we want to close the socket.
-signal.signal(signal.SIGINT, keyboard_interrupt)
-
 print("The server waits for a connection on port:", port)
     
-connected_clients = []
-players = {}
-wait_for_players(connected_clients, players, level)
-run_game(connected_clients, players, level)
-main_link.close()
+try:
+    connected_clients = []
+    players = {}
+    wait_for_players(connected_clients, players, level)
+    run_game(connected_clients, players, level)
+    main_link.close()
+    os.system('pause')
+    
+except KeyboardInterrupt:
+    # In case of a keyboard interrupt, we want to close the socket.
+    tell_clients('server quit', level, players)
+    main_link.close()

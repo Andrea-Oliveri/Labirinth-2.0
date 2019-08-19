@@ -77,7 +77,7 @@ def run_game(user_commands):
                     print("\nGame updated: \n")
                 elif codons['your turn'] in server_message:
                     user_commands['my turn'] = True
-                    print("\nIt's your turn: \n")
+                    print("\nIt's your turn: ", end='')
                 print(server_message[server_message.index(codons_end)+len(codons_end):])
                 
         with user_commands_lock:
