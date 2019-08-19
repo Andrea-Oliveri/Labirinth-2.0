@@ -103,8 +103,8 @@ class GetPlayerCommands(Thread):
         """Constructor of class GetPlayerCommands."""
         Thread.__init__(self)
         self.user_commands = user_commands
-        self.daemon = True
         self.game_started = False
+        self.game_ended = False
         
         
     def run(self):
@@ -113,6 +113,8 @@ class GetPlayerCommands(Thread):
         here."""
         while True:
             command = input().lower().strip()
+            if self.game_ended:
+                break
             with print_lock:
                 with user_commands_lock:
                     # No matter if the game started or not, we accept the 'print rules' and 'leave' commands.
@@ -145,13 +147,13 @@ server_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 print("Connecting to server on port:", port)
 # We try to connect and we quit if server is not active or does not respnd within
-# 3 seconds (server not active but socket is open).
+# 3 seconds (game already started).
 try:
     server_link.connect((host_name, port))
     server_link.settimeout(3.)
     confirmation_message = server_link.recv(1024).decode()
     server_link.settimeout(None)
-    if confirmation_message == codons['refused']:
+    if not confirmation_message == codons['aknowledge']:
         raise ConnectionAbortedError    
 except:
     print_connection_error_and_quit('Server is not active or a game is already running. Connection Failed. Exiting.')
@@ -174,6 +176,7 @@ try:
     thread_get_player_commands.game_started = True
     print("Insert the command (n/s/o/e/m/p/h/q).")
     run_game(user_commands)
+    thread_get_player_commands.game_ended = True
 
 except (ConnectionAbortedError, ConnectionResetError):
     # In case of connection with server lost we want to inform the user and quit.

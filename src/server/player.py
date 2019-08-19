@@ -16,7 +16,6 @@ class Player:
         self._lin_coord = lin_coord
         self._col_coord = col_coord
         self._draw_as_main = False
-        self._has_moved = False
     
     
     def move(self, level, direction):
