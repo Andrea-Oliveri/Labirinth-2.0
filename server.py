@@ -1,6 +1,3 @@
-# GAME WORKS ASYNCHRONOUSLY 
-
-
 # -*- coding: utf-8 -*-
 
 """Main module for the Server of Labirinth 2.0"""
@@ -10,6 +7,7 @@ import select
 import signal
 import random
 import sys
+import time
 
 import src.server.files as files
 import src.graphic as graphic
@@ -69,7 +67,7 @@ def tell_clients(codon, level, players):
     elif codon == 'player left':
         print("A player disconnected: ")
     elif codon == 'step':
-        print("All players moved a step: ")
+        print("A player moved a step: ")
     
     graphic.draw_all(add_players_to_level(level, players))
     
@@ -77,8 +75,14 @@ def tell_clients(codon, level, players):
         player = players[client]
         player.draw_as_main = True 
         message = codons[codon] + codons_end + str(add_players_to_level(level, players))
-        client.send(message.encode())
+        try:
+            client.send(message.encode())
+        except (ConnectionAbortedError, ConnectionResetError):
+            pass
         player.draw_as_main = False 
+    
+    # Prevents two messages sent from server from overlapping: client might read them as one.
+    time.sleep(0.25)
     return
     
 
@@ -143,44 +147,52 @@ def wait_for_players(connected_clients, players, level):
 def run_game(connected_clients, players, level):
     """...........If a new client tries to connect, we don't do anything: we simply do not send him
     the aknowledge command and he understands connection failed................."""    
+    
+    # We put a timeout to the sockets after which we consider the client as disconnected.
+    for client in connected_clients:
+        client.settimeout(30.)
+
     while not any(player_on_exit(level, player) for player in players.values()):
         if not connected_clients:
             print("All the players left. Game is over.")
             return
-
-        # We check if any connected client wants to send a command. 
-        # The try block is because if connected_clients is empty, an exception is raised.
-        try:
-            clients_to_read, wlist, xlist = select.select(connected_clients, [], [], 0.05)
-        except select.error:
-            pass
-        else:
-            # For each client that wants to send a command, we read his command.
-            for client in clients_to_read:
-                # This line may launch an exception if the message contains
-                # special characters. It launches an exception if the client
-                # is closed abruptly (in which case we forget him).
-                try:
-                    message = client.recv(1024).decode()
-                except (ConnectionAbortedError, ConnectionResetError):
-                    message = codons['player left']
-                                
-                if codons['player left'] in message:
-                    players.pop(client)
-                    connected_clients.remove(client)
-                    
-                if codons['move'] in message:
-                    players[client].move(level, message[len(codons['move']):])
-                    
-                if codons['wall'] in message:
-                    level.wall(players[client].lin_coord, players[client].col_coord, message[len(codons['wall']):])
-                
-                if codons['door'] in message:
-                    level.door(players[client].lin_coord, players[client].col_coord, message[len(codons['door']):])
         
+        for client in connected_clients:
+            # These lines may launch an exception if the message contains
+            # special characters. It launches an exception if the client
+            # is closed abruptly (in which case we forget him).
+            try:
+                your_turn_message = codons['your turn'] + codons_end
+                client.send(your_turn_message.encode())
+                message = client.recv(1024).decode()
+            except (ConnectionAbortedError, ConnectionResetError, socket.timeout):
+                message = codons['player left']
+        
+            if codons['player left'] in message:
+                players.pop(client)
+                connected_clients.remove(client)
+                try:
+                    disconnected_message = codons['server quit'] + codons_end
+                    client.send(disconnected_message.encode())
+                except:
+                    pass
+                client.close()
+                tell_clients('player left', level, players)
+                
+            if codons['move'] in message:
+                players[client].move(level, message[len(codons['move']):])
                 tell_clients('step', level, players)
-    
-    
+                
+            if codons['wall'] in message:
+                level.wall(players[client].lin_coord, players[client].col_coord, message[len(codons['wall']):])
+                tell_clients('step', level, players)
+                
+            if codons['door'] in message:
+                level.door(players[client].lin_coord, players[client].col_coord, message[len(codons['door']):])
+                tell_clients('step', level, players)
+                
+    # Once the game is over, we inform the clients and also send a string to
+    # tell the players if they won or not.
     for client in connected_clients:
         message= ''
         if player_on_exit(level, players[client]):

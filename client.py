@@ -4,7 +4,6 @@
 
 import socket
 import select
-import os
 import sys
 from threading import Thread, RLock
 
@@ -21,7 +20,6 @@ def print_connection_error_and_quit(message):
     the socket and terminates execution"""
     print(message)
     server_link.close()
-    os.system('pause')
     sys.exit()    
             
             
@@ -73,15 +71,18 @@ def run_game(user_commands):
                     print("\nA player left: \n")
                 elif codons['step'] in server_message:
                     print("\nGame updated: \n")
+                elif codons['your turn'] in server_message:
+                    user_commands['my turn'] = True
+                    print("\nIt's your turn: \n")
                 print(server_message[server_message.index(codons_end)+len(codons_end):])
-        
+                
         with user_commands_lock:
             if user_commands['print rules']:
                 user_interface.print_rules()
                 user_commands['print rules'] = False
             if user_commands['leave']:
                 raise KeyboardInterrupt
-            if user_commands['game action']:               
+            if user_commands['game action'] and user_commands['my turn']:
                 if user_commands['game action']['command'] in commands['directions']:
                     server_link.send((codons['move']+user_commands['game action']['command']).encode())
                     user_commands['game action']['distance'] -= 1
@@ -93,6 +94,7 @@ def run_game(user_commands):
                 elif user_commands['game action']['command'] == commands['door']:
                     server_link.send((codons['door']+user_commands['game action']['direction']).encode())
                     user_commands['game action'] = None
+                user_commands['my turn'] = False
     
     
     
@@ -117,7 +119,8 @@ class GetPlayerCommands(Thread):
                 break
             with print_lock:
                 with user_commands_lock:
-                    # No matter if the game started or not, we accept the 'print rules' and 'leave' commands.
+                    # No matter if the game started or not, no matter if it's our
+                    # turn, we accept the 'print rules' and 'leave' commands.
                     if command == commands['print rules']:
                         self.user_commands['print rules'] = True
                     elif command == commands['leave']:
@@ -129,16 +132,19 @@ class GetPlayerCommands(Thread):
                                 self.user_commands['start game'] = True
                             else:
                                 print("Press C to start the game, H for the rules or Q to leave.")
-                        # Only if the game started, we accept 'game action' command.
+                        # Only if the game started and it's our turn we accept 'game action' command.
                         else:
-                            game_action = user_interface.interpret_game_action(command)
-                            if game_action:
-                                if self.user_commands['game action'] == None:
-                                    self.user_commands['game action'] = game_action
+                            if user_commands['my turn']:
+                                game_action = user_interface.interpret_game_action(command)
+                                if game_action:
+                                    if self.user_commands['game action'] == None:
+                                        self.user_commands['game action'] = game_action
+                                    else:
+                                        print('You have game actions that are still pending.')
                                 else:
-                                    print('You have game actions that are still pending.')
+                                    print("Insert the command (n/s/o/e/m/p/h/q).")
                             else:
-                                print("Insert the command (n/s/o/e/m/p/h/q).")            
+                                print("It's not your turn to move yet.")
         
 
 print("Welcome to Labirinth 2.0")
@@ -162,7 +168,7 @@ print("Connected to the server on port:", port)
 
 # Declaration of a dictionary of commands that is going to be filled by the thread
 # interacting with the player and treated by the main thread.
-user_commands = {'start game': False, 'print rules': False, 'leave': False, 'game action': None}
+user_commands = {'start game': False, 'print rules': False, 'leave': False, 'game action': None, 'my turn': False}
 
 # We create a daemon thread that fills user_commands with the commands from the user.
 print_lock = RLock()
@@ -180,9 +186,11 @@ try:
 
 except (ConnectionAbortedError, ConnectionResetError):
     # In case of connection with server lost we want to inform the user and quit.
+    thread_get_player_commands.game_ended = True
     with print_lock:
         print_connection_error_and_quit('Connection with the Server lost. Exiting.')
 except KeyboardInterrupt:
     # In case of a keyboard interrupt, we want to inform the server that a player disconnected.
+    thread_get_player_commands.game_ended = True
     server_link.send(codons['player left'].encode())
     server_link.close()
