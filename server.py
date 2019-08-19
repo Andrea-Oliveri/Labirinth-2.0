@@ -57,7 +57,9 @@ def choose_random_empty_case(level_with_players):
 
 
 def tell_clients(codon, level, players):
-    """.............................."""
+    """Function that prints a short message on the server screen to inform about
+    a change in status and also informs all the clients about it. For both the clients
+    and the server, the level is redrawn."""
     if codon == 'server quit':
         print("Server shuts down.")
     elif codon == 'start':
@@ -75,6 +77,8 @@ def tell_clients(codon, level, players):
         player = players[client]
         player.draw_as_main = True 
         message = codons[codon] + codons_end + str(add_players_to_level(level, players))
+        # The try block here is in case a player disconnected abruptly. For now
+        # we don't do anything. The treatement will happen during this player's turn.
         try:
             client.send(message.encode())
         except (ConnectionAbortedError, ConnectionResetError):
@@ -106,10 +110,12 @@ def wait_for_players(connected_clients, players, level):
         asked_links, wlist, xlist = select.select([main_link], [], [], 0.05)
         
         # For each client that asked to connect, we add their socket to the list,
-        # we send a confirmation message and we create a new player for him.
+        # we send a confirmation message, we create a new player for him and we
+        # inform all clients.
         for link in asked_links:
             client_link, link_infos = link.accept()
-            client_link.send(codons['aknowledge'].encode())
+            confirmation_message = codons['aknowledge'] + codons_end
+            client_link.send(confirmation_message.encode())
             connected_clients.append(client_link)
             lin, col = choose_random_empty_case(add_players_to_level(level, players))
             new_player = Player(lin, col)
@@ -140,13 +146,18 @@ def wait_for_players(connected_clients, players, level):
                     players.pop(client)
                     connected_clients.remove(client)
                     tell_clients('player left', level, players)
+                    
     tell_clients('start', level, players)
     return
         
 
 def run_game(connected_clients, players, level):
-    """...........If a new client tries to connect, we don't do anything: we simply do not send him
-    the aknowledge command and he understands connection failed................."""    
+    """Function that, as long as no player is on the exit and there are still players
+    connected for each player sends a message asking for the move and then waits a max
+    number of seconds for the answer, after which the player is eliminated. If the player
+    left abruptly, we forget him. If a new player tries to connect, we don't do anything:
+    the absence of the confirmation message will make the client understand that the
+    connection failed."""    
     
     # We put a timeout to the sockets after which we consider the client as disconnected.
     for client in connected_clients:
@@ -160,22 +171,28 @@ def run_game(connected_clients, players, level):
         for client in connected_clients:
             # These lines may launch an exception if the message contains
             # special characters. It launches an exception if the client
-            # is closed abruptly (in which case we forget him).
+            # is closed abruptly (in which case we forget him). It also
+            # launches an exception if the client does not respond within
+            # the timeout.
             try:
                 your_turn_message = codons['your turn'] + codons_end
                 client.send(your_turn_message.encode())
                 message = client.recv(1024).decode()
-            except (ConnectionAbortedError, ConnectionResetError, socket.timeout):
+            except (ConnectionAbortedError, ConnectionResetError):
                 message = codons['player left']
-        
-            if codons['player left'] in message:
-                players.pop(client)
-                connected_clients.remove(client)
+            # If the player was disconnected due to inactivity, we try to tell
+            # the client he has been disconnected. If we can't for any reason, 
+            # we don't worry anymore. 
+            except socket.timeout:
                 try:
                     disconnected_message = codons['server quit'] + codons_end
                     client.send(disconnected_message.encode())
                 except:
                     pass
+        
+            if codons['player left'] in message:
+                players.pop(client)
+                connected_clients.remove(client)
                 client.close()
                 tell_clients('player left', level, players)
                 
@@ -207,9 +224,11 @@ def run_game(connected_clients, players, level):
 
 print("Server for Labirinth 2.0")
     
+# Choice of the labirinth to play.
 level = Level(files.import_map(files.choose_level()))
 graphic.draw_all(level)
     
+# Set up of the socket connection.
 main_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 main_link.bind((host_name, port))
 main_link.listen(5)

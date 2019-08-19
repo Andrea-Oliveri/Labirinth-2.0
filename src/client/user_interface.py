@@ -10,7 +10,7 @@ commands = {'start game': 'c', 'print rules': 'h', 'leave': 'q',
 def print_rules():
     """Function that asks whether to print the rules and eventually prints them."""            
     print()
-    print(u"\u2022", "You control a robot and you play against other players to escape the labirinth.")
+    print(u"\u2022", "You control a robot and you play against other players to escape the labirinth. During your turn you have limited time to move, after which you will be eliminated.")
     print(u"\u2022", "Objects in the labirinth:")
     print("\t O: wall (blocks robot)\n\t .: door (robot can pass)\n\t U: exit\n\t X: your robot\n\t x: adversaries' robots")
     print(u"\u2022", "Controls:")
