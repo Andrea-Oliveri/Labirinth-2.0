@@ -9,7 +9,6 @@ from src.graphic import symbols
 
 levels_folder_name = "levels"
 levels_extension = ".txt"
-saved_game_name = "saved game"
 
 
 def choose_level():
@@ -17,22 +16,22 @@ def choose_level():
     level the user would like to play. To select a level, the user must insert
     its full name."""
     
-    #levels_list is a dictionary with level_name as key and level_path as value
-    levels_list = {}
+    #levels_dict is a dictionary with level_name as key and level_path as value
+    levels_dict = {}
     for level_name in os.listdir(levels_folder_name):
         if level_name.endswith(levels_extension):
             level_path = os.path.join(levels_folder_name, level_name)
             level_name = level_name[:-len(levels_extension)].lower()
-            levels_list[level_name] = level_path
+            levels_dict[level_name] = level_path
     
     print("These are the available maps:")
-    for name in levels_list.keys():
+    for name in levels_dict.keys():
         print("->", name)
 
     chosen_name = input("Write the name of the map you'd like to play: ").lower().strip()
-    while chosen_name not in levels_list.keys():
+    while chosen_name not in levels_dict.keys():
         chosen_name = input("Invalid map name entered. Please try again: ").lower().strip()
-    return levels_list[chosen_name]
+    return levels_dict[chosen_name]
 
 
 def import_map(file_path):
