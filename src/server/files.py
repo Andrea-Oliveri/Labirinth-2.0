@@ -26,8 +26,8 @@ def choose_level():
             levels_list[level_name] = level_path
     
     print("These are the available maps:")
-    for index, name in enumerate(levels_list.keys()):
-        print(index+1, "-", name)
+    for name in levels_list.keys():
+        print("->", name)
 
     chosen_name = input("Write the name of the map you'd like to play: ").lower().strip()
     while chosen_name not in levels_list.keys():
@@ -40,12 +40,15 @@ def import_map(file_path):
     performs two basic checks to test the validity of the map: the map is
     rectangular and the border of the map only contains walls or escape points.
     In case of error, an exception is launched and execution is terminated.
-    Otherwise, this function returns the 2D list representing the level and
-    player."""
+    Otherwise, this function returns the 2D list representing the level."""
     with open(file_path, 'r') as file:
         file = file.read()
         file = file.split('\n')
+    # Removing blank spaces on the sides of the map.
     list_2D = [line.strip() for line in file]
+    # Removing blank lines in the map.
+    list_2D = [line for line in list_2D if line]
+
         
     possible_borders = [symbols['wall'], symbols['exit']]
                           

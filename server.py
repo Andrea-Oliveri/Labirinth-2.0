@@ -6,7 +6,6 @@ import socket
 import select
 import random
 import os
-import sys
 import time
 
 import src.server.files as files

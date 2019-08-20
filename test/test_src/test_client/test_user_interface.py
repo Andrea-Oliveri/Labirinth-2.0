@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
+"""Module that tests the module user_interface."""
+
 import unittest
 import src.client.user_interface as user_interface
 
-"""Module that tests the module user_interface."""
 
 
 class TestUserInterface(unittest.TestCase):
@@ -21,6 +22,7 @@ class TestUserInterface(unittest.TestCase):
             
     def test_interpret_game_action(self):
         """Test the function user_interface.interpret_command."""      
+        # Test move commands.
         self.assertEqual(user_interface.interpret_game_action('n'), {'command': 'n', 'distance': 1})
         self.assertEqual(user_interface.interpret_game_action('s'), {'command': 's', 'distance': 1})
         self.assertEqual(user_interface.interpret_game_action('o'), {'command': 'o', 'distance': 1})
@@ -28,6 +30,8 @@ class TestUserInterface(unittest.TestCase):
         self.assertEqual(user_interface.interpret_game_action('n2'), {'command': 'n', 'distance': 2})
         self.assertEqual(user_interface.interpret_game_action('s    2'), {'command': 's', 'distance': 2})
         self.assertEqual(user_interface.interpret_game_action('o\t2'), {'command': 'o', 'distance': 2})
+        
+        # Test wall and door commands. 
         self.assertEqual(user_interface.interpret_game_action('p'), None)
         self.assertEqual(user_interface.interpret_game_action('m'), None)
         self.assertEqual(user_interface.interpret_game_action('pn'), {'command': 'p', 'direction': 'n'})
@@ -40,6 +44,8 @@ class TestUserInterface(unittest.TestCase):
         self.assertEqual(user_interface.interpret_game_action('mo'), {'command': 'm', 'direction': 'o'})
         self.assertEqual(user_interface.interpret_game_action('p      n'), {'command': 'p', 'direction': 'n'})
         self.assertEqual(user_interface.interpret_game_action('m\ts'), {'command': 'm', 'direction': 's'})
+        
+        # Test invalid commands.
         self.assertEqual(user_interface.interpret_game_action('a'), None)
         self.assertEqual(user_interface.interpret_game_action('1'), None)
         self.assertEqual(user_interface.interpret_game_action('p1'), None)
