@@ -58,11 +58,11 @@ def tell_clients(codon, level, players):
     elif codon == 'start':
         print("Game started with", len(connected_clients), "players.")
     elif codon == 'new player':
-        print("A new player joined: ")
+        print("A new player joined:")
     elif codon == 'player left':
-        print("A player disconnected: ")
+        print("A player disconnected:")
     elif codon == 'step':
-        print("A player moved a step: ")
+        print("A player moved a step:")
     
     graphic.draw_all(add_players_to_level(level, players))
     

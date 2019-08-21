@@ -18,10 +18,10 @@ host_name = 'localhost'
 def connect_to_server(server_link):
     """Function that tries to connect to the server. If the link is not opened
     (server is not active) or the server does not respond with a confirmation
-    message withing 3 seconds (the server is already running a game) we print
+    message withing one second (the server is already running a game) we print
     an informative message on screen and terminate execution."""
     server_link.connect((host_name, port))
-    server_link.settimeout(3.)
+    server_link.settimeout(1.)
     confirmation_message = server_link.recv(1024).decode()
     server_link.settimeout(None)
     if codons['aknowledge'] not in confirmation_message:
@@ -38,23 +38,22 @@ def print_connection_error_and_quit(message):
     sys.exit()    
             
             
-def treat_server_message(server_message):
+def treat_server_message(server_message, user_commands):
     """Function that treats the server message passed as parameter."""
-    with print_lock:
-        if codons['server quit'] in server_message:
-            raise ConnectionAbortedError
-        elif codons['start'] in server_message:
-            print("\nGame starts now: \n")
-        elif codons['new player'] in server_message:
-            print("\nA new player joined: \n")
-        elif codons['player left'] in server_message:
-            print("\nA player left: \n")
-        elif codons['step'] in server_message:
-            print("\nGame updated: \n")
-        elif codons['your turn'] in server_message:
-            user_commands['my turn'] = True
-            print("\nIt's your turn: ", end='')
-        print(server_message[server_message.index(codons_end)+len(codons_end):])
+    if codons['server quit'] in server_message:
+        raise ConnectionAbortedError
+    elif codons['start'] in server_message:
+        print("\nGame starts now:\n")
+    elif codons['new player'] in server_message:
+        print("\nA new player joined:\n")
+    elif codons['player left'] in server_message:
+        print("\nA player left:\n")
+    elif codons['step'] in server_message:
+        print("\nGame updated:\n")
+    elif codons['your turn'] in server_message:
+        user_commands['my turn'] = True
+        print("\nIt's your turn:", end='')
+    print(server_message[server_message.index(codons_end)+len(codons_end):])
 
 
 def wait_for_start(user_commands):
@@ -66,7 +65,8 @@ def wait_for_start(user_commands):
         read_server, wlist, xlist = select.select([server_link], [], [], 0.05)
         if read_server:
             server_message = server_link.recv(1024).decode()
-            treat_server_message(server_message)
+            with print_lock:
+                treat_server_message(server_message, user_commands)
         
         with user_commands_lock:
             if user_commands['start game']:
@@ -93,7 +93,8 @@ def run_game(user_commands):
         read_server, wlist, xlist = select.select([server_link], [], [], 0.05)
         if read_server:
             server_message = server_link.recv(1024).decode()
-            treat_server_message(server_message)
+            with print_lock:
+                treat_server_message(server_message, user_commands)
                 
         with user_commands_lock:
             if user_commands['print rules']:

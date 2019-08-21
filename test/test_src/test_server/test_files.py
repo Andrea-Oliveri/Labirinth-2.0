@@ -24,7 +24,7 @@ class TestFiles(unittest.TestCase):
         # We also test the function returns the path of the file.
         with patch('sys.stdout', new_callable=io.StringIO) as mock_output, patch('builtins.input', return_value = name_test_level):
             self.assertEqual(test_level_path, files.choose_level())
-        self.assertEqual("These are the available maps:\n-> blank spaces and lines\n-> invalid borders\n-> non rectangular\n-> ok\n", mock_output.getvalue())
+            self.assertEqual("These are the available maps:\n-> blank spaces and lines\n-> invalid borders\n-> non rectangular\n-> ok\n", mock_output.getvalue())
         
         
     def test_import_map(self):
