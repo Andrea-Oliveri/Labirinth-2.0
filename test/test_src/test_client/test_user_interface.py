@@ -3,6 +3,7 @@
 """Module that tests the module user_interface."""
 
 import unittest
+
 import src.client.user_interface as user_interface
 
 
@@ -23,32 +24,32 @@ class TestUserInterface(unittest.TestCase):
     def test_interpret_game_action(self):
         """Test the function user_interface.interpret_command."""      
         # Test move commands.
-        self.assertEqual(user_interface.interpret_game_action('n'), {'command': 'n', 'distance': 1})
-        self.assertEqual(user_interface.interpret_game_action('s'), {'command': 's', 'distance': 1})
-        self.assertEqual(user_interface.interpret_game_action('o'), {'command': 'o', 'distance': 1})
-        self.assertEqual(user_interface.interpret_game_action('e'), {'command': 'e', 'distance': 1})
-        self.assertEqual(user_interface.interpret_game_action('n2'), {'command': 'n', 'distance': 2})
-        self.assertEqual(user_interface.interpret_game_action('s    2'), {'command': 's', 'distance': 2})
-        self.assertEqual(user_interface.interpret_game_action('o\t2'), {'command': 'o', 'distance': 2})
+        self.assertEqual({'command': 'n', 'distance': 1}, user_interface.interpret_game_action('n'))
+        self.assertEqual({'command': 's', 'distance': 1}, user_interface.interpret_game_action('s'))
+        self.assertEqual({'command': 'o', 'distance': 1}, user_interface.interpret_game_action('o'))
+        self.assertEqual({'command': 'e', 'distance': 1}, user_interface.interpret_game_action('e'))
+        self.assertEqual({'command': 'n', 'distance': 2}, user_interface.interpret_game_action('n2'))
+        self.assertEqual({'command': 's', 'distance': 2}, user_interface.interpret_game_action('s    2'))
+        self.assertEqual({'command': 'o', 'distance': 2}, user_interface.interpret_game_action('o\t2'))
         
         # Test wall and door commands. 
-        self.assertEqual(user_interface.interpret_game_action('p'), None)
-        self.assertEqual(user_interface.interpret_game_action('m'), None)
-        self.assertEqual(user_interface.interpret_game_action('pn'), {'command': 'p', 'direction': 'n'})
-        self.assertEqual(user_interface.interpret_game_action('ps'), {'command': 'p', 'direction': 's'})
-        self.assertEqual(user_interface.interpret_game_action('pe'), {'command': 'p', 'direction': 'e'})
-        self.assertEqual(user_interface.interpret_game_action('po'), {'command': 'p', 'direction': 'o'})
-        self.assertEqual(user_interface.interpret_game_action('mn'), {'command': 'm', 'direction': 'n'})
-        self.assertEqual(user_interface.interpret_game_action('ms'), {'command': 'm', 'direction': 's'})
-        self.assertEqual(user_interface.interpret_game_action('me'), {'command': 'm', 'direction': 'e'})
-        self.assertEqual(user_interface.interpret_game_action('mo'), {'command': 'm', 'direction': 'o'})
-        self.assertEqual(user_interface.interpret_game_action('p      n'), {'command': 'p', 'direction': 'n'})
-        self.assertEqual(user_interface.interpret_game_action('m\ts'), {'command': 'm', 'direction': 's'})
+        self.assertEqual(None, user_interface.interpret_game_action('p'))
+        self.assertEqual(None, user_interface.interpret_game_action('m'))
+        self.assertEqual({'command': 'p', 'direction': 'n'}, user_interface.interpret_game_action('pn'))
+        self.assertEqual({'command': 'p', 'direction': 's'}, user_interface.interpret_game_action('ps'))
+        self.assertEqual({'command': 'p', 'direction': 'e'}, user_interface.interpret_game_action('pe'))
+        self.assertEqual({'command': 'p', 'direction': 'o'}, user_interface.interpret_game_action('po'))
+        self.assertEqual({'command': 'm', 'direction': 'n'}, user_interface.interpret_game_action('mn'))
+        self.assertEqual({'command': 'm', 'direction': 's'}, user_interface.interpret_game_action('ms'))
+        self.assertEqual({'command': 'm', 'direction': 'e'}, user_interface.interpret_game_action('me'))
+        self.assertEqual({'command': 'm', 'direction': 'o'}, user_interface.interpret_game_action('mo'))
+        self.assertEqual({'command': 'p', 'direction': 'n'}, user_interface.interpret_game_action('p      n'))
+        self.assertEqual({'command': 'm', 'direction': 's'}, user_interface.interpret_game_action('m\ts'))
         
         # Test invalid commands.
-        self.assertEqual(user_interface.interpret_game_action('a'), None)
-        self.assertEqual(user_interface.interpret_game_action('1'), None)
-        self.assertEqual(user_interface.interpret_game_action('p1'), None)
-        self.assertEqual(user_interface.interpret_game_action('m3'), None)
-        self.assertEqual(user_interface.interpret_game_action('na'), None)
-        self.assertEqual(user_interface.interpret_game_action('s^'), None)
+        self.assertEqual(None, user_interface.interpret_game_action('a'))
+        self.assertEqual(None, user_interface.interpret_game_action('1'))
+        self.assertEqual(None, user_interface.interpret_game_action('p1'))
+        self.assertEqual(None, user_interface.interpret_game_action('m3'))
+        self.assertEqual(None, user_interface.interpret_game_action('na'))
+        self.assertEqual(None, user_interface.interpret_game_action('s^'))

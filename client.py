@@ -14,6 +14,21 @@ from src.client.user_interface import commands
 host_name = 'localhost'
 
 
+
+def connect_to_server(server_link):
+    """Function that tries to connect to the server. If the link is not opened
+    (server is not active) or the server does not respond with a confirmation
+    message withing 3 seconds (the server is already running a game) we print
+    an informative message on screen and terminate execution."""
+    server_link.connect((host_name, port))
+    server_link.settimeout(3.)
+    confirmation_message = server_link.recv(1024).decode()
+    server_link.settimeout(None)
+    if codons['aknowledge'] not in confirmation_message:
+        raise ConnectionAbortedError    
+    return
+
+
 def print_connection_error_and_quit(message):
     """Function called in case of a connection error (connection can't be 
     established or is lost). Prints the message passed as parameter, closes
@@ -23,6 +38,25 @@ def print_connection_error_and_quit(message):
     sys.exit()    
             
             
+def treat_server_message(server_message):
+    """Function that treats the server message passed as parameter."""
+    with print_lock:
+        if codons['server quit'] in server_message:
+            raise ConnectionAbortedError
+        elif codons['start'] in server_message:
+            print("\nGame starts now: \n")
+        elif codons['new player'] in server_message:
+            print("\nA new player joined: \n")
+        elif codons['player left'] in server_message:
+            print("\nA player left: \n")
+        elif codons['step'] in server_message:
+            print("\nGame updated: \n")
+        elif codons['your turn'] in server_message:
+            user_commands['my turn'] = True
+            print("\nIt's your turn: ", end='')
+        print(server_message[server_message.index(codons_end)+len(codons_end):])
+
+
 def wait_for_start(user_commands):
     """Function that periodically checks if there are new messages from the
     server and treats the commands by the user. Returns only once the server
@@ -32,16 +66,7 @@ def wait_for_start(user_commands):
         read_server, wlist, xlist = select.select([server_link], [], [], 0.05)
         if read_server:
             server_message = server_link.recv(1024).decode()
-            with print_lock:
-                if codons['server quit'] in server_message:
-                    raise ConnectionAbortedError
-                elif codons['start'] in server_message:
-                    print("\nGame starts now: \n")
-                elif codons['new player'] in server_message:
-                    print("\nA new player joined: \n")
-                elif codons['player left'] in server_message:
-                    print("\nA player left: \n")
-                print(server_message[server_message.index(codons_end)+len(codons_end):])
+            treat_server_message(server_message)
         
         with user_commands_lock:
             if user_commands['start game']:
@@ -68,17 +93,7 @@ def run_game(user_commands):
         read_server, wlist, xlist = select.select([server_link], [], [], 0.05)
         if read_server:
             server_message = server_link.recv(1024).decode()
-            with print_lock:
-                if codons['server quit'] in server_message:
-                    raise ConnectionAbortedError
-                elif codons['player left'] in server_message:
-                    print("\nA player left: \n")
-                elif codons['step'] in server_message:
-                    print("\nGame updated: \n")
-                elif codons['your turn'] in server_message:
-                    user_commands['my turn'] = True
-                    print("\nIt's your turn: ", end='')
-                print(server_message[server_message.index(codons_end)+len(codons_end):])
+            treat_server_message(server_message)
                 
         with user_commands_lock:
             if user_commands['print rules']:
@@ -114,8 +129,6 @@ class GetPlayerCommands(Thread):
         """Constructor of class GetPlayerCommands."""
         Thread.__init__(self)
         self.user_commands = user_commands
-        self.game_started = False
-        self.game_ended = False
         
         
     def run(self):
@@ -124,7 +137,7 @@ class GetPlayerCommands(Thread):
         here before changing user_commands."""
         while True:
             command = input().lower().strip()
-            if self.game_ended:
+            if game_ended:
                 return
             with print_lock, user_commands_lock:
                 # No matter if the game started or not, no matter if it's our
@@ -135,7 +148,7 @@ class GetPlayerCommands(Thread):
                     self.user_commands['leave'] = True
                 else:
                     # Only if the game did not start, we accept the 'start game' command.
-                    if not self.game_started: 
+                    if not game_started: 
                         if command == commands['start game']:
                             self.user_commands['start game'] = True
                         else:
@@ -151,57 +164,52 @@ class GetPlayerCommands(Thread):
                                     self.user_commands['game action'] = game_action
                                 else:
                                     # Invalid command inserted.
-                                    print("Insert the command (n/s/o/e/m/p/h/q).")
+                                    print("Available commands: n/s/o/e/m/p/h/q.")
                             else:
                                 print('You have game actions that are still pending.')
                         else:
                             print("It's not your turn to move yet.")
         
-
-print("Welcome to Labirinth 2.0")
-
-server_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-print("Connecting to server on port:", port)
-# We try to connect and we quit if server is not active or does not respnd within
-# 3 seconds (game already started).
-try:
-    server_link.connect((host_name, port))
-    server_link.settimeout(3.)
-    confirmation_message = server_link.recv(1024).decode()
-    server_link.settimeout(None)
-    if codons['aknowledge'] not in confirmation_message:
-        raise ConnectionAbortedError    
-except:
-    print_connection_error_and_quit('Server is not active or a game is already running. Connection Failed. Exiting.')
-
-print("Connected to the server on port:", port)
-
-# Declaration of a dictionary of commands that is going to be filled by the thread
-# interacting with the player and treated by the main thread.
-user_commands = {'start game': False, 'print rules': False, 'leave': False, 'game action': None, 'my turn': False}
-
-# We create a daemon thread that fills user_commands with the commands from the user.
-print_lock = RLock()
-user_commands_lock = RLock()
-thread_get_player_commands = GetPlayerCommands(user_commands)
-print("\nPress C to start the game, H for the rules or Q to leave.")
-thread_get_player_commands.start()
-
-try:
-    wait_for_start(user_commands)
-    thread_get_player_commands.game_started = True
-    print("Insert the command (n/s/o/e/m/p/h/q).")
-    run_game(user_commands)
-    thread_get_player_commands.game_ended = True
-
-except (ConnectionAbortedError, ConnectionResetError):
-    # In case of connection with server lost we want to inform the user and quit.
-    thread_get_player_commands.game_ended = True
-    with print_lock:
-        print_connection_error_and_quit('Connection with the Server lost. Exiting.')
-except KeyboardInterrupt:
-    # In case of a keyboard interrupt, we want to inform the server that a player disconnected.
-    thread_get_player_commands.game_ended = True
-    server_link.send(codons['player left'].encode())
-    server_link.close()
+if __name__ == "__main__":
+    print("Welcome to Labirinth 2.0")
+    
+    server_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print("Connecting to server on port:", port)
+    try:
+        connect_to_server(server_link)
+    except (ConnectionError, socket.timeout):
+        print_connection_error_and_quit('Server is not active or a game is already running. Connection Failed. Exiting.')
+    print("Connected to the server on port:", port)
+    
+    # Declaration of two booleans that will define whether the game started and ended.
+    game_started = False
+    game_ended = False
+    
+    # Declaration of a dictionary of commands that is going to be filled by the thread
+    # interacting with the player and treated by the main thread.
+    user_commands = {'start game': False, 'print rules': False, 'leave': False, 'game action': None, 'my turn': False}
+    
+    # We create a daemon thread that fills user_commands with the commands from the user.
+    print_lock = RLock()
+    user_commands_lock = RLock()
+    thread_get_player_commands = GetPlayerCommands(user_commands)
+    print("\nPress C to start the game, H for the rules or Q to leave.")
+    thread_get_player_commands.start()
+    
+    try:
+        wait_for_start(user_commands)
+        game_started = True
+        print("Available commands: n/s/o/e/m/p/h/q.")
+        run_game(user_commands)
+        game_ended = True
+    
+    except ConnectionError:
+        # In case of connection with server lost we want to inform the user and quit.
+        game_ended = True
+        with print_lock:
+            print_connection_error_and_quit('Connection with the Server lost. Exiting.')
+    except KeyboardInterrupt:
+        # In case of a keyboard interrupt, we want to inform the server that a player disconnected.
+        game_ended = True
+        server_link.send(codons['player left'].encode())
+        server_link.close()

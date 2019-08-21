@@ -74,7 +74,7 @@ def tell_clients(codon, level, players):
         # we don't do anything. The treatement will happen during this player's turn.
         try:
             client.send(message.encode())
-        except (ConnectionAbortedError, ConnectionResetError):
+        except ConnectionError:
             pass
         player.draw_as_main = False 
     
@@ -129,7 +129,7 @@ def wait_for_players(connected_clients, players, level):
                 # is closed abruptly (in which case we forget him).
                 try:
                     message = client.recv(1024).decode()
-                except (ConnectionAbortedError, ConnectionResetError):
+                except ConnectionError:
                     message = codons['player left']
                     
                 if message == codons['start']:
@@ -171,7 +171,7 @@ def run_game(connected_clients, players, level):
                 your_turn_message = codons['your turn'] + codons_end
                 client.send(your_turn_message.encode())
                 message = client.recv(1024).decode()
-            except (ConnectionAbortedError, ConnectionResetError):
+            except ConnectionError:
                 message = codons['player left']
             # If the player was disconnected due to inactivity, we try to tell
             # the client he has been disconnected. If we can't for any reason, 
@@ -215,29 +215,29 @@ def run_game(connected_clients, players, level):
     print("A player left the labirinth. Game is over.")
     return
 
-
-print("Server for Labirinth 2.0")
+if __name__ == "__main__":
+    print("Server for Labirinth 2.0")
+        
+    # Choice of the labirinth to play.
+    level = Level(files.import_map(files.choose_level()))
+    graphic.draw_all(level)
+        
+    # Set up of the socket connection.
+    main_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    main_link.bind((host_name, port))
+    main_link.listen(5)
     
-# Choice of the labirinth to play.
-level = Level(files.import_map(files.choose_level()))
-graphic.draw_all(level)
-    
-# Set up of the socket connection.
-main_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-main_link.bind((host_name, port))
-main_link.listen(5)
-
-print("The server waits for a connection on port:", port)
-    
-try:
-    connected_clients = []
-    players = {}
-    wait_for_players(connected_clients, players, level)
-    run_game(connected_clients, players, level)
-    main_link.close()
-    os.system('pause')
-    
-except KeyboardInterrupt:
-    # In case of a keyboard interrupt, we want to close the socket.
-    tell_clients('server quit', level, players)
-    main_link.close()
+    print("The server waits for a connection on port:", port)
+        
+    try:
+        connected_clients = []
+        players = {}
+        wait_for_players(connected_clients, players, level)
+        run_game(connected_clients, players, level)
+        main_link.close()
+        os.system('pause')
+        
+    except KeyboardInterrupt:
+        # In case of a keyboard interrupt, we want to close the socket.
+        tell_clients('server quit', level, players)
+        main_link.close()

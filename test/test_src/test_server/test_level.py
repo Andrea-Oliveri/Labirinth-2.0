@@ -3,8 +3,10 @@
 """Module that tests the module level."""
 
 import unittest
+
 import src.server.level as level
 import src.server.player as player
+
 
 
 class TestLevel(unittest.TestCase):
@@ -41,7 +43,7 @@ class TestLevel(unittest.TestCase):
     def test__init__(self):
         """Tests the __init__ method of the class level.Level."""
         original_list_2D = list(self.list_2D)
-        self.assertEqual(self.level.list_2D, original_list_2D)
+        self.assertEqual(original_list_2D, self.level.list_2D)
     
     def test__repr__(self):
         """Tests the __repr__ method of the class level.Level."""
@@ -56,14 +58,14 @@ class TestLevel(unittest.TestCase):
     def test__setitem__(self):
         """Tests the __setiitem__ method of the class level.Level."""
         self.level[0] = 'OXOOOUOUOO'
-        self.assertEqual(self.level[0], 'OXOOOUOUOO')
+        self.assertEqual('OXOOOUOUOO', self.level[0])
 
     def test__add__(self):
         """Tests the __add__ method of the class level.Level."""
         list_with_player = list(self.list_2D)
         list_with_player[5] = 'O O O   xU'
         level_with_player = level.Level(list_with_player)
-        self.assertEqual((self.level + self.player).list_2D, level_with_player.list_2D)
+        self.assertEqual(level_with_player.list_2D, (self.level + self.player).list_2D)
         with self.assertRaises(TypeError):
             self.level + 2        
 
@@ -72,7 +74,7 @@ class TestLevel(unittest.TestCase):
         list_with_player = list(self.list_2D)
         list_with_player[5] = 'O O O   xU'
         level_with_player = level.Level(list_with_player)
-        self.assertEqual((self.player + self.level).list_2D, level_with_player.list_2D)
+        self.assertEqual(level_with_player.list_2D, (self.player + self.level).list_2D)
         with self.assertRaises(TypeError):
             2 + self.level 
         
@@ -80,39 +82,39 @@ class TestLevel(unittest.TestCase):
         """Tests the method wall of the class level.Level."""        
         # Wall of a door.
         self.level.wall(5, 8, 'n')
-        self.assertEqual(self.level[4][8], 'O')
+        self.assertEqual('O', self.level[4][8])
         
         # Wall of an empty case.
         self.level.wall(5, 8, 'o')
-        self.assertEqual(self.level[5][7], ' ')
+        self.assertEqual(' ', self.level[5][7])
         
         # Wall of the exit.
         self.level.wall(5, 8, 'e')
-        self.assertEqual(self.level[5][9], 'U')
+        self.assertEqual('U', self.level[5][9])
         
         # Wall of a wall.
         self.level.wall(5, 7, 'n')
-        self.assertEqual(self.level[4][7], 'O')
+        self.assertEqual('O', self.level[4][7])
         
         
     def test_door(self):
         """Tests the method door of the class level.Level."""
         # Door of an internal wall.
         self.level.door(5, 7, 'n')
-        self.assertEqual(self.level[4][7], '.')
+        self.assertEqual('.', self.level[4][7])
         
         # Door of a border wall.
         self.level.door(1, 1, 'n')
-        self.assertEqual(self.level[0][1], 'O')
+        self.assertEqual('O', self.level[0][1])
         
         # Door of an empty case.
         self.level.door(5, 8, 'o')
-        self.assertEqual(self.level[5][7], ' ')
+        self.assertEqual(' ', self.level[5][7])
         
         # Door of an exit.
         self.level.door(5, 8, 'e')
-        self.assertEqual(self.level[5][9], 'U')
+        self.assertEqual('U', self.level[5][9])
         
         # Door of a door.
         self.level.door(5, 8, 'n')
-        self.assertEqual(self.level[4][8], '.')
+        self.assertEqual('.', self.level[4][8])

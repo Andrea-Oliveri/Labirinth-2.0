@@ -4,6 +4,7 @@
 
 
 import unittest
+
 import src.server.player as player
 import src.server.level as level
 
@@ -13,7 +14,7 @@ class TestPlayer(unittest.TestCase):
     """Test case used to test functions in module player."""
 
     def setUp(self):
-        """Set up of the test class"""
+        """Set up of the test class."""
         # We choose an init_lin_coord and init_col_coord that allow testing moves
         # in all directions without encountering doors nor walls not exits.
         self.init_lin_coord = 3
@@ -80,7 +81,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(self.init_lin_coord+1, self.player.lin_coord) 
         self.assertEqual(self.init_col_coord, self.player.col_coord)
         
-        # Test of blocking on exit.
+        # Test of moving on exit.
         self.player.move(self.level, 's')
         self.player.move(self.level, 'e')
         self.assertEqual(self.init_lin_coord+2, self.player.lin_coord) 
