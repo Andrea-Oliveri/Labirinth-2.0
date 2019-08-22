@@ -3,7 +3,7 @@
 """Module that interacts with the user."""
 
 
-commands = {'start game': 'c', 'print rules': 'h', 'leave': 'q',
+commands = {'print rules': 'h', 'leave': 'q', 'start game': 'c', 
             'directions': ('n', 's', 'e', 'o'), 'wall': 'm', 'door': 'p'}
 
 
@@ -57,3 +57,38 @@ def interpret_game_action(command):
             return {'command': command, 'direction': direction}
     
     return None
+
+
+def interpret_user_command(command, user_commands, game_status):
+    """Function that interprets and modifies user_commands accordingly to the
+    user input. All possible repetitions or command conflicts are dealt with
+    here before changing user_commands."""
+    # No matter if the game started or not, no matter if it's our
+    # turn, we accept the 'print rules' and 'leave' commands.
+    if command == commands['print rules']:
+        user_commands['print rules'] = True
+    elif command == commands['leave']:
+        user_commands['leave'] = True
+    else:
+        # Only if the game did not start, we accept the 'start game' command.
+        if not game_status['started']: 
+            if command == commands['start game']:
+                user_commands['start game'] = True
+            else:
+                # Invalid command inserted.
+                print("Press C to start the game, H for the rules or Q to leave.")
+        # Only if the game started, it's our turn and no previous commands are
+        # still pending we accept 'game action' command.
+        else:
+            if user_commands['my turn']:
+                if not user_commands['game action']:
+                    game_action = interpret_game_action(command)
+                    if game_action:
+                        user_commands['game action'] = game_action
+                    else:
+                        # Invalid command inserted.
+                        print("Available commands: n/s/o/e/m/p/h/q.")
+                else:
+                    print("You have game actions that are still pending.")
+            else:
+                print("It's not your turn to move yet.")

@@ -56,120 +56,77 @@ def treat_server_message(server_message, user_commands):
     print(server_message[server_message.index(codons_end)+len(codons_end):])
 
 
-def wait_for_start(user_commands):
+def treat_user_commands(server_link, user_commands, game_status):
+    """Function that treats the user commands."""   
+    if user_commands['print rules']:
+        user_interface.print_rules()
+        user_commands['print rules'] = False
+    if user_commands['leave']:
+        raise KeyboardInterrupt
+        
+    if not game_status['started']:
+        # This could send a second request to the server to start the game
+        # (if two clients ask to start almost simultaneously), but it will
+        # be up to the server to ignore any following game start requests. 
+        if user_commands['start game']:
+            server_link.send(codons['start'].encode())
+            user_commands['start game'] = False
+    else:
+        # We check that it's our turn and that the player actually moved.
+        # If it's a move command, we first send it and then decrease the distance
+        # we still have to move. If the remaining distance is zero, the command
+        # is deleted. Otherwise the new distance is memorised. If it's a wall or door
+        # command, it is sent and forgot anyways.
+        if user_commands['game action'] and user_commands['my turn']:
+            if user_commands['game action']['command'] in commands['directions']:
+                server_link.send((codons['move']+user_commands['game action']['command']).encode())
+                user_commands['game action']['distance'] -= 1
+                if user_commands['game action']['distance'] == 0:
+                    user_commands['game action'] = None
+            elif user_commands['game action']['command'] == commands['wall']:
+                server_link.send((codons['wall']+user_commands['game action']['direction']).encode())
+                user_commands['game action'] = None
+            elif user_commands['game action']['command'] == commands['door']:
+                server_link.send((codons['door']+user_commands['game action']['direction']).encode())
+                user_commands['game action'] = None
+            user_commands['my turn'] = False
+    
+
+def wait_for_codon_from_server(codon, user_commands, game_status):
     """Function that periodically checks if there are new messages from the
     server and treats the commands by the user. Returns only once the server
-    sent the start codon."""
+    sent the codon with key passed as parameter."""
     server_message = ''
-    while codons['start'] not in server_message:
+    while codons[codon] not in server_message:
         read_server, wlist, xlist = select.select([server_link], [], [], 0.05)
         if read_server:
             server_message = server_link.recv(1024).decode()
-            with print_lock:
+            with thread_lock:
                 treat_server_message(server_message, user_commands)
         
-        with user_commands_lock:
-            if user_commands['start game']:
-                # This could send a second request to the server to start the game
-                # (if two clients ask to start almost simultaneously), but it will
-                # be up to the server to ignore any following game start requests. 
-                server_link.send(codons['start'].encode())
-                user_commands['start game'] = False
-            if user_commands['print rules']:
-                user_interface.print_rules()
-                user_commands['print rules'] = False
-            if user_commands['leave']:
-                raise KeyboardInterrupt
+        with thread_lock:
+            treat_user_commands(server_link, user_commands, game_status)
 
 
-def run_game(user_commands):
-    """Function that periodically checks if there are new messages from the
-    server and treats the commands by the user. For the commands involving a
-    game action, it first waits until the server asks for the command, then prints
-    a message asking the player for the command and then sends it. Returns only 
-    once the server sent the game end codon."""
-    server_message = ''
-    while codons['game end'] not in server_message:
-        read_server, wlist, xlist = select.select([server_link], [], [], 0.05)
-        if read_server:
-            server_message = server_link.recv(1024).decode()
-            with print_lock:
-                treat_server_message(server_message, user_commands)
-                
-        with user_commands_lock:
-            if user_commands['print rules']:
-                user_interface.print_rules()
-                user_commands['print rules'] = False
-            if user_commands['leave']:
-                raise KeyboardInterrupt
-            # We check that it's our turn and that the player actually moved.
-            # If it's a move command, we first send it and then decrease the distance
-            # we still have to move. If the remaining distance is zero, the command
-            # is deleted. Otherwise the new distance is memorised. If it's a wall or door
-            # command, it is sent and forgot anyways.
-            if user_commands['game action'] and user_commands['my turn']:
-                if user_commands['game action']['command'] in commands['directions']:
-                    server_link.send((codons['move']+user_commands['game action']['command']).encode())
-                    user_commands['game action']['distance'] -= 1
-                    if user_commands['game action']['distance'] == 0:
-                        user_commands['game action'] = None
-                elif user_commands['game action']['command'] == commands['wall']:
-                    server_link.send((codons['wall']+user_commands['game action']['direction']).encode())
-                    user_commands['game action'] = None
-                elif user_commands['game action']['command'] == commands['door']:
-                    server_link.send((codons['door']+user_commands['game action']['direction']).encode())
-                    user_commands['game action'] = None
-                user_commands['my turn'] = False
-    
-    
-    
 class GetPlayerCommands(Thread):
     """Thread that takes all user inputs and modifies user_commands accordingly."""
     
-    def __init__(self, user_commands):
+    def __init__(self, user_commands, game_status):
         """Constructor of class GetPlayerCommands."""
         Thread.__init__(self)
         self.user_commands = user_commands
-        
-        
+        self.game_status = game_status
+    
     def run(self):
-        """Run method of the thread. Modifies user_commands accordingly to the
-        user input. All possible repetitions or command conflicts are dealt with
-        here before changing user_commands."""
+        """Run method of the thread."""
         while True:
             command = input().lower().strip()
-            if game_ended:
+            if self.game_status['ended']:
                 return
-            with print_lock, user_commands_lock:
-                # No matter if the game started or not, no matter if it's our
-                # turn, we accept the 'print rules' and 'leave' commands.
-                if command == commands['print rules']:
-                    self.user_commands['print rules'] = True
-                elif command == commands['leave']:
-                    self.user_commands['leave'] = True
-                else:
-                    # Only if the game did not start, we accept the 'start game' command.
-                    if not game_started: 
-                        if command == commands['start game']:
-                            self.user_commands['start game'] = True
-                        else:
-                            # Invalid command inserted.
-                            print("Press C to start the game, H for the rules or Q to leave.")
-                    # Only if the game started, it's our turn and no previous commands are
-                    # still pending we accept 'game action' command.
-                    else:
-                        if user_commands['my turn']:
-                            if not self.user_commands['game action']:
-                                game_action = user_interface.interpret_game_action(command)
-                                if game_action:
-                                    self.user_commands['game action'] = game_action
-                                else:
-                                    # Invalid command inserted.
-                                    print("Available commands: n/s/o/e/m/p/h/q.")
-                            else:
-                                print('You have game actions that are still pending.')
-                        else:
-                            print("It's not your turn to move yet.")
+            with thread_lock:
+                user_interface.interpret_user_command(command, self.user_commands, self.game_status)
+        
+        
         
 if __name__ == "__main__":
     print("Welcome to Labirinth 2.0")
@@ -182,35 +139,34 @@ if __name__ == "__main__":
         print_connection_error_and_quit('Server is not active or a game is already running. Connection Failed. Exiting.')
     print("Connected to the server on port:", port)
     
-    # Declaration of two booleans that will define whether the game started and ended.
-    game_started = False
-    game_ended = False
+    # Declaration of two booleans in a dictionary that will define the status of the game.
+    game_status = {'started': False, 'ended': False}
     
     # Declaration of a dictionary of commands that is going to be filled by the thread
     # interacting with the player and treated by the main thread.
     user_commands = {'start game': False, 'print rules': False, 'leave': False, 'game action': None, 'my turn': False}
     
     # We create a daemon thread that fills user_commands with the commands from the user.
-    print_lock = RLock()
-    user_commands_lock = RLock()
-    thread_get_player_commands = GetPlayerCommands(user_commands)
+    # We also create a lock to prevent simultaneous access to print and user_commands.
+    thread_lock = RLock()
+    thread_get_player_commands = GetPlayerCommands(user_commands, game_status)
     print("\nPress C to start the game, H for the rules or Q to leave.")
     thread_get_player_commands.start()
     
     try:
-        wait_for_start(user_commands)
-        game_started = True
+        wait_for_codon_from_server('start', user_commands, game_status)
+        game_status['started'] = True
         print("Available commands: n/s/o/e/m/p/h/q.")
-        run_game(user_commands)
-        game_ended = True
+        wait_for_codon_from_server('game end', user_commands, game_status)
+        game_status['ended'] = True
     
     except ConnectionError:
         # In case of connection with server lost we want to inform the user and quit.
-        game_ended = True
-        with print_lock:
+        game_status['ended'] = True
+        with thread_lock:
             print_connection_error_and_quit('Connection with the Server lost. Exiting.')
     except KeyboardInterrupt:
         # In case of a keyboard interrupt, we want to inform the server that a player disconnected.
-        game_ended = True
+        game_status['ended'] = True
         server_link.send(codons['player left'].encode())
         server_link.close()

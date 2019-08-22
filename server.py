@@ -31,15 +31,15 @@ def add_players_to_level(level, players):
 def choose_random_empty_case(level_with_players):
     """Returns the line index and col index of a randomly chosen empty case
     in parameter level_with_players."""
-    random_lin = random.randrange(len(level.list_2D))
-    while not graphic.symbols['empty'] in level[random_lin]:
-        random_lin = random.randrange(len(level.list_2D))
+    random_lin = random.randrange(len(level_with_players.list_2D))
+    while not graphic.symbols['empty'] in level_with_players[random_lin]:
+        random_lin = random.randrange(len(level_with_players.list_2D))
         
-    n_empty_cells = level[random_lin].count(graphic.symbols['empty'])
+    n_empty_cells = level_with_players[random_lin].count(graphic.symbols['empty'])
     random_empty_cell = random.randrange(n_empty_cells)
     
     random_col = 0
-    for cell in level[random_lin]:
+    for cell in level_with_players[random_lin]:
         if cell == graphic.symbols['empty']:
             random_empty_cell -= 1 
         if random_empty_cell < 0:
@@ -214,6 +214,8 @@ def run_game(connected_clients, players, level):
         
     print("A player left the labirinth. Game is over.")
     return
+
+
 
 if __name__ == "__main__":
     print("Server for Labirinth 2.0")
