@@ -16,7 +16,14 @@ from src.graphic import symbols
 
     
 
-def stub_client_message(messages_list):
+def stub_client_empty():
+    """Function that simulates a client that simply requests a connection
+    (expects a confirmation message to consider connection successfull) and quits."""
+    server_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect_to_server(server_link)   
+    server_link.close()
+    
+def stub_client_receive_message(messages_list):
     """Function that simulates a client that simply requests a connection
     (expects a confirmation message to consider connection successfull) and
     then waits for message that it appends to messages_list and quits."""
@@ -24,13 +31,7 @@ def stub_client_message(messages_list):
     client.connect_to_server(server_link)    
     messages_list.append(server_link.recv(1024).decode())
     server_link.close()
-
-def stub_client_empty():
-    """Function that simulates a client that simply requests a connection
-    (expects a confirmation message to consider connection successfull) and quits."""
-    server_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect_to_server(server_link)   
-    server_link.close()
+    
 
 
 class TestPlayerLevelInteraction(unittest.TestCase):
@@ -172,13 +173,14 @@ class TestTellClients(unittest.TestCase):
         self.main_link.bind((server.host_name, port))
         self.main_link.listen(5)
         
-        # Creation and connection to 3 stub clients.
+        # Creation and connection to n_stub_clients stub clients.
+        self.n_stub_clients = 3
         self.threads_stub_clients = []
         self.connected_clients = []
         self.players = {}
         self.messages_list = []
-        for _ in range(3):
-            thread_client = threading.Thread(target = stub_client_message, args = (self.messages_list,))
+        for _ in range(self.n_stub_clients):
+            thread_client = threading.Thread(target = stub_client_receive_message, args = (self.messages_list,))
             self.threads_stub_clients.append(thread_client)
             thread_client.start()
             server.accept_client(self.main_link, self.connected_clients, self.level, self.players)
@@ -217,110 +219,4 @@ class TestTellClients(unittest.TestCase):
         """Test that no error is produced when a client quits abruptly the
         connection for server.tell_clients."""
         server.tell_clients('server quit', self.connected_clients, self.level, self.players)
-        server.tell_clients('start', self.connected_clients, self.level, self.players)    
-
-
-
-
-
-
-#def wait_for_players(connected_clients, level, players):
-#    """Function that periodically tests if there are new clients that want to join
-#    the game, for each new client spawns a player in the game. It also periodically
-#    checks if a client wants to talk with the server and if so, we get and treat
-#    the message (can be either a start request or a player left info). For every
-#    change, we write a message on the console and inform all connected clients."""
-#    start_asked = False
-#    while not start_asked:
-#        # We test wether there are any clients wanting to connect on the server socket.
-#        asked_links, wlist, xlist = select.select([main_link], [], [], 0.05)
-#        
-#        for link in asked_links:
-#            accept_client(link, connected_clients, level, players)
-#            tell_clients('new player', connected_clients, level, players)
-#        
-#        # For each connected client, we check whether they want to be read.
-#        # The try block is because if connected_clients is empty, an exception is raised.
-#        try:
-#            clients_to_read, wlist, xlist = select.select(connected_clients, [], [], 0.05)
-#        except select.error:
-#            pass
-#        else:
-#            # For each client waiting to be read; we read what he has to say.
-#            for client in clients_to_read:
-#                # This line may launch an exception if the message contains
-#                # special characters. It launches an exception if the client
-#                # is closed abruptly (in which case we forget him).
-#                try:
-#                    message = client.recv(1024).decode()
-#                except ConnectionError:
-#                    message = codons['player left']
-#                    
-#                if message == codons['start']:
-#                    start_asked = True
-#
-#                elif message == codons['player left']:
-#                    remove_client(client, connected_clients, players)
-#                    tell_clients('player left', connected_clients, level, players)
-#                    
-#    tell_clients('start', connected_clients, level, players)
-#    return
-#        
-#
-#def run_game(connected_clients, level, players):
-#    """Function that, as long as no player is on the exit and there are still players
-#    connected for each player sends a message asking for the move and then waits a max
-#    number of seconds for the answer, after which the player is eliminated. If the player
-#    left abruptly, we forget him. If a new player tries to connect, we don't do anything:
-#    the absence of the confirmation message will make the client understand that the
-#    connection failed."""    
-#    
-#    # We put a timeout to the sockets after which we consider the client as disconnected.
-#    for client in connected_clients:
-#        client.settimeout(30.)
-#
-#    while not any(player_on_exit(level, player) for player in players.values()):
-#        if not connected_clients:
-#            print("All the players left. Game is over.")
-#            return
-#        
-#        for client in connected_clients:
-#            # These lines may launch an exception if the message contains
-#            # special characters. It launches an exception if the client
-#            # is closed abruptly (in which case we forget him). It also
-#            # launches an exception if the client does not respond within
-#            # the timeout.
-#            try:
-#                your_turn_message = codons['your turn'] + codons_end
-#                client.send(your_turn_message.encode())
-#                message = client.recv(1024).decode()
-#            except ConnectionError:
-#                message = codons['player left']
-#            # If the player was disconnected due to inactivity, we try to tell
-#            # the client he has been disconnected. If we can't for any reason, 
-#            # we don't worry anymore. 
-#            except socket.timeout:
-#                message = codons['player left']
-#                try:
-#                    disconnected_message = codons['server quit'] + codons_end
-#                    client.send(disconnected_message.encode())
-#                except:
-#                    pass
-#        
-#            if codons['player left'] in message:
-#                remove_client(client, connected_clients, players)
-#                tell_clients('player left', connected_clients, level, players)
-#                
-#            if codons['move'] in message:
-#                players[client].move(level, message[len(codons['move']):])
-#                tell_clients('step', connected_clients, level, players)
-#                
-#            if codons['wall'] in message:
-#                level.wall(players[client].lin_coord, players[client].col_coord, message[len(codons['wall']):])
-#                tell_clients('step', connected_clients, level, players)
-#                
-#            if codons['door'] in message:
-#                level.door(players[client].lin_coord, players[client].col_coord, message[len(codons['door']):])
-#                tell_clients('step', connected_clients, level, players)
-#                
-#    send_clients_game_over(connected_clients, level, players)
+        server.tell_clients('start', self.connected_clients, self.level, self.players)

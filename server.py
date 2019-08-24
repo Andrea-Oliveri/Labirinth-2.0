@@ -161,7 +161,7 @@ def wait_for_players(connected_clients, level, players):
                 if message == codons['start']:
                     start_asked = True
 
-                elif message == codons['player left']:
+                if message == codons['player left']:
                     remove_client(client, connected_clients, players)
                     tell_clients('player left', connected_clients, level, players)
                     
