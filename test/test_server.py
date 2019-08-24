@@ -6,9 +6,9 @@ import unittest
 from unittest.mock import patch
 import socket
 import threading
-import io
 
 import server
+import client
 from src.communication import port, codons_end, codons
 import src.server.player as player
 import src.server.level as level
@@ -16,7 +16,24 @@ from src.graphic import symbols
 
     
 
-class TestPlayerLevelInteractionConnectToServer(unittest.TestCase):
+def stub_client_message(messages_list):
+    """Function that simulates a client that simply requests a connection
+    (expects a confirmation message to consider connection successfull) and
+    then waits for message that it appends to messages_list and quits."""
+    server_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect_to_server(server_link)    
+    messages_list.append(server_link.recv(1024).decode())
+    server_link.close()
+
+def stub_client_empty():
+    """Function that simulates a client that simply requests a connection
+    (expects a confirmation message to consider connection successfull) and quits."""
+    server_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect_to_server(server_link)   
+    server_link.close()
+
+
+class TestPlayerLevelInteraction(unittest.TestCase):
     """Test case used to test function server.add_players_to_level,
     server.choose_random_empty_case and server.player_on_exit."""
     
@@ -88,43 +105,126 @@ class TestPlayerLevelInteractionConnectToServer(unittest.TestCase):
 
 
 
+class TestAcceptClient(unittest.TestCase):
+    """Test case used to test function server.accept_client."""
+        
+    def setUp(self):
+        """Set up of the test class."""
+        # Creation of the parameters passed to server.accept_client.
+        self.level = level.Level(['OOOOOOOOOO',
+                                  'O O    O O',
+                                  'O . OO   O',
+                                  'O O O    O',
+                                  'O OOOO O.O',
+                                  'O O O    U',
+                                  'O OOOOOO.O',
+                                  'O O      O',
+                                  'O O OOOOOO',
+                                  'O . O    O',
+                                  'OOOOOOOOOO'])
+        self.connected_clients = []
+        self.players = {}
+        
+        # Set up of the socket connection.
+        self.main_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.main_link.bind((server.host_name, port))
+        self.main_link.listen(5)
+        
+        # Creation of 1 stub clients.
+        self.thread_client = threading.Thread(target = stub_client_empty)
+        self.thread_client.start()    
+    
+    def tearDown(self):
+        """Method called after test each test."""
+        # Closing the links with clients and the main_link.
+        for client_link in self.connected_clients:
+            client_link.close()
+        self.main_link.close()      
+        
+    def test_accept_client(self):
+        """Test of function server.accept_client."""
+        server.accept_client(self.main_link, self.connected_clients, self.level, self.players)
+        self.assertTrue(self.connected_clients)
+        self.assertTrue(self.players)
+        self.thread_client.join()
 
 
-#def tell_clients(codon, level, players):
-#    """Function that prints a short message on the server screen to inform about
-#    a change in status and also informs all the clients about it. For both the clients
-#    and the server, the level is redrawn."""
-#    if codon == 'server quit':
-#        print("Server shuts down.")
-#    elif codon == 'start':
-#        print("Game started with", len(connected_clients), "players.")
-#    elif codon == 'new player':
-#        print("A new player joined:")
-#    elif codon == 'player left':
-#        print("A player disconnected:")
-#    elif codon == 'step':
-#        print("A player moved a step:")
-#    
-#    graphic.draw_all(add_players_to_level(level, players))
-#    
-#    for client in connected_clients:
-#        player = players[client]
-#        player.draw_as_main = True 
-#        message = codons[codon] + codons_end + str(add_players_to_level(level, players))
-#        # The try block here is in case a player disconnected abruptly. For now
-#        # we don't do anything. The treatement will happen during this player's turn.
-#        try:
-#            client.send(message.encode())
-#        except ConnectionError:
-#            pass
-#        player.draw_as_main = False 
-#    
-#    # Prevents two messages sent from server from overlapping: client might read them as one.
-#    time.sleep(0.25)
-#    return
-#    
-#
-#def wait_for_players(connected_clients, players, level):
+
+class TestTellClients(unittest.TestCase):
+    """Test case used to test function server.tell_clients."""
+    
+    def setUp(self):
+        """Set up of the test class."""
+        self.level = level.Level(['OOOOOOOOOO',
+                                  'O O    O O',
+                                  'O . OO   O',
+                                  'O O O    O',
+                                  'O OOOO O.O',
+                                  'O O O    U',
+                                  'O OOOOOO.O',
+                                  'O O      O',
+                                  'O O OOOOOO',
+                                  'O . O    O',
+                                  'OOOOOOOOOO'])
+    
+        # Set up of the socket connection.
+        self.main_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.main_link.bind((server.host_name, port))
+        self.main_link.listen(5)
+        
+        # Creation and connection to 3 stub clients.
+        self.threads_stub_clients = []
+        self.connected_clients = []
+        self.players = {}
+        self.messages_list = []
+        for _ in range(3):
+            thread_client = threading.Thread(target = stub_client_message, args = (self.messages_list,))
+            self.threads_stub_clients.append(thread_client)
+            thread_client.start()
+            server.accept_client(self.main_link, self.connected_clients, self.level, self.players)
+        
+        # Patching time.sleep to run tests faster and print in tell_clients.
+        self.time_patch = patch('time.sleep')
+        self.time_patch.start()
+        self.print_patch = patch('builtins.print')
+        self.print_patch.start()
+    
+    
+    def tearDown(self):
+        """Method called after test each test."""
+        # Closing the links with clients and the main_link.
+        for client_link in self.connected_clients:
+            client_link.close()
+        self.main_link.close()      
+        
+        # Stopping patching time.sleep and print in tell_clients.
+        self.time_patch.stop()
+        self.print_patch.stop()
+
+    
+    def test_tell_clients_each_received_message(self):
+        """Test that each client receives a message and the message contains the
+        correct codon and codon_end for server.tell_clients."""
+        server.tell_clients('server quit', self.connected_clients, self.level, self.players)
+        for thread_client in self.threads_stub_clients:
+            thread_client.join()
+        
+        for message in self.messages_list:
+            self.assertIn(codons['server quit'] + codons_end, message)
+               
+            
+    def test_tell_clients_deconnected_client(self):
+        """Test that no error is produced when a client quits abruptly the
+        connection for server.tell_clients."""
+        server.tell_clients('server quit', self.connected_clients, self.level, self.players)
+        server.tell_clients('start', self.connected_clients, self.level, self.players)    
+
+
+
+
+
+
+#def wait_for_players(connected_clients, level, players):
 #    """Function that periodically tests if there are new clients that want to join
 #    the game, for each new client spawns a player in the game. It also periodically
 #    checks if a client wants to talk with the server and if so, we get and treat
@@ -135,18 +235,9 @@ class TestPlayerLevelInteractionConnectToServer(unittest.TestCase):
 #        # We test wether there are any clients wanting to connect on the server socket.
 #        asked_links, wlist, xlist = select.select([main_link], [], [], 0.05)
 #        
-#        # For each client that asked to connect, we add their socket to the list,
-#        # we send a confirmation message, we create a new player for him and we
-#        # inform all clients.
 #        for link in asked_links:
-#            client_link, link_infos = link.accept()
-#            confirmation_message = codons['aknowledge'] + codons_end
-#            client_link.send(confirmation_message.encode())
-#            connected_clients.append(client_link)
-#            lin, col = choose_random_empty_case(add_players_to_level(level, players))
-#            new_player = Player(lin, col)
-#            players[client_link] = new_player
-#            tell_clients('new player', level, players)
+#            accept_client(link, connected_clients, level, players)
+#            tell_clients('new player', connected_clients, level, players)
 #        
 #        # For each connected client, we check whether they want to be read.
 #        # The try block is because if connected_clients is empty, an exception is raised.
@@ -169,15 +260,14 @@ class TestPlayerLevelInteractionConnectToServer(unittest.TestCase):
 #                    start_asked = True
 #
 #                elif message == codons['player left']:
-#                    players.pop(client)
-#                    connected_clients.remove(client)
-#                    tell_clients('player left', level, players)
+#                    remove_client(client, connected_clients, players)
+#                    tell_clients('player left', connected_clients, level, players)
 #                    
-#    tell_clients('start', level, players)
+#    tell_clients('start', connected_clients, level, players)
 #    return
 #        
 #
-#def run_game(connected_clients, players, level):
+#def run_game(connected_clients, level, players):
 #    """Function that, as long as no player is on the exit and there are still players
 #    connected for each player sends a message asking for the move and then waits a max
 #    number of seconds for the answer, after which the player is eliminated. If the player
@@ -218,32 +308,19 @@ class TestPlayerLevelInteractionConnectToServer(unittest.TestCase):
 #                    pass
 #        
 #            if codons['player left'] in message:
-#                players.pop(client)
-#                connected_clients.remove(client)
-#                client.close()
-#                tell_clients('player left', level, players)
+#                remove_client(client, connected_clients, players)
+#                tell_clients('player left', connected_clients, level, players)
 #                
 #            if codons['move'] in message:
 #                players[client].move(level, message[len(codons['move']):])
-#                tell_clients('step', level, players)
+#                tell_clients('step', connected_clients, level, players)
 #                
 #            if codons['wall'] in message:
 #                level.wall(players[client].lin_coord, players[client].col_coord, message[len(codons['wall']):])
-#                tell_clients('step', level, players)
+#                tell_clients('step', connected_clients, level, players)
 #                
 #            if codons['door'] in message:
 #                level.door(players[client].lin_coord, players[client].col_coord, message[len(codons['door']):])
-#                tell_clients('step', level, players)
+#                tell_clients('step', connected_clients, level, players)
 #                
-#    # Once the game is over, we inform the clients and also send a string to
-#    # tell the players if they won or not.
-#    for client in connected_clients:
-#        message= ''
-#        if player_on_exit(level, players[client]):
-#            message = codons['game end']+codons_end+'Congratulations, you won!'
-#        else:
-#            message = codons['game end']+codons_end+'Sorry, you lost...'
-#        client.send(message.encode())
-#        
-#    print("A player left the labirinth. Game is over.")
-#    return
+#    send_clients_game_over(connected_clients, level, players)

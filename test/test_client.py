@@ -77,7 +77,7 @@ class TestClientConnectToServer(unittest.TestCase):
         
     def tearDown(self):
         """Method called after test each test."""
-        # Closing both the server_main_link and the link between client and server.
+        # Closing the server_main_link.
         self.server_link.close()
     
 
